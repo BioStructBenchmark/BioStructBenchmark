@@ -1,0 +1,27 @@
+[project]
+name = "BioStructBenchmark"
+version = "0.0.1"
+authors = [
+    { name="Delta Kapp", email="deltakapp@gmail.com"},
+    { name="Morgan Esler", email="mesler1397@gmail.com"},
+]
+description = "A tool for analyzing protein-nucleic acid complexes"
+readme = "README.md"
+requires-python = ">-3.13"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+license = { file = "LICENSE"}
+
+[build-system]
+requires = [
+    "black==25.1.0",
+    "click==8.2.1",
+    "mypy_extensions==1.1.0",
+    "packaging==25.0",
+    "pathspec==0.12.1",
+    "platformdirs==4.3.8",
+]
+build-backend = []
