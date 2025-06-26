@@ -3,22 +3,26 @@ name = "BioStructBenchmark"
 version = "0.0.1"
 authors = [
     { name="Delta Kapp", email="deltakapp@gmail.com"},
-    { name="Morgan Esler", email="mesler1397@gmail.com"}
+    { name="Morgan Esler", email="mesler1397@gmail.com"},
 ]
 description = "A tool for analyzing protein-nucleic acid complexes"
 readme = "README.md"
 requires-python = ">=3.13"
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
-license = { file = "LICENSE"}
-
+license = "MIT"
+dependencies = [
+    "biopython>=1.85",
+    "numpy>=2.2.6",
+]
 
 [project.urls]
-"Homepage" = "https://github.com/yourusername/hellopkg"
+"Homepage" = "https://github.com/BioStructBenchmark/BioStructBenchmark"
 
 [build-system]
-requires = ["setuptools>=80.9.0"]
+requires = [
+    "setuptools>=80.9.0",
+    ]
 build-backend = "setuptools.build_meta"
