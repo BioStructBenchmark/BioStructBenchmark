@@ -16,7 +16,7 @@ license = { file = "LICENSE"}
 
 
 [project.urls]
-"Homepage" = "https://github.com/yourusername/hellopkg"
+"Homepage" = "https://github.com/BioStructBenchmark/BioStructBenchmark"
 
 [build-system]
 requires = ["setuptools>=80.9.0"]
