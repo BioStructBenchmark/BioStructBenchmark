@@ -3,7 +3,7 @@
 """Single-file validation"""
 
 from Bio.PDB import MMCIFParser, PDBParser
-from cli import arg_parser
+from .cli import arg_parser
 
 
 def validate_file(file_path: str, file_type: str) -> None:
