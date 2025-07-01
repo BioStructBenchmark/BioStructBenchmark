@@ -2,12 +2,11 @@
 
 import argparse
 import os
-from Bio.PDB import *
 import ast
 
 
 def validate_file_path(file_path: str) -> str:
-    "Validate file_path input"
+    """Validate file_path input"""
     if os.path.isfile(file_path):
         return file_path
     else:
@@ -22,10 +21,11 @@ def file_type(file_type: str) -> str:
         return "PDB"
     else:
         raise argparse.ArgumentTypeError(
-            f"file_type argument must be either MMCIF or PDB"
+            "file_type argument must be either MMCIF or PDB"
         )
 
 
+# TODO: improve by loading package info
 def get_version() -> str:
     """Get version from __init__.py"""
     for line in open("biostructbenchmark/__init__.py"):
@@ -34,12 +34,11 @@ def get_version() -> str:
     return "Undefined version"
 
 
-def arg_parser():
+def arg_parser() -> argparse.Namespace:
     """Assemble command-line argument processing"""
     parser = argparse.ArgumentParser()
 
     # Version argument
-    # TODO autodetect version from pyproject.toml or __init__.py
     parser.add_argument(
         "-v",
         "--version",
