@@ -1,9 +1,12 @@
 # BioStructBenchmark
 
+TODO: Add a description of the package here.
+
 ## Installation
 
-TODO
+To install BioStructBenchMark, run 'pip install biostructbenchmark'
 
-## Installation for developers
+## Development
 
-TODO
+To install BioStructBenchmark for development, run:
+`pip install -e BioStructBenchmark .[dev]'

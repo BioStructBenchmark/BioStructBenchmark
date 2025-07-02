@@ -1,18 +1,22 @@
 [project]
 name = "BioStructBenchmark"
 version = "0.0.1"
+description = "A tool for analyzing protein-nucleic acid complexes"
 authors = [
     { name="Delta Kapp", email="deltakapp@gmail.com"},
     { name="Morgan Esler", email="mesler1397@gmail.com"}
 ]
-description = "A tool for analyzing protein-nucleic acid complexes"
-readme = "README.md"
-requires-python = ">=3.13"
+readme = {file = "README.md", content-type = "text/markdown"}
+license = "MIT"
+requires-python = ">=3.13.0"
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
 ]
-license = { file = "LICENSE"}
+dependencies = [
+    "biopython>=1.85",
+    "numpy>=2.3.1"
+    ]
 
 
 [project.urls]
@@ -21,3 +25,16 @@ license = { file = "LICENSE"}
 [build-system]
 requires = ["setuptools>=80.9.0"]
 build-backend = "setuptools.build_meta"
+
+[dependency-groups]
+test = [
+    "pytest==8.4.1"
+    ]
+lint = [
+    "black==25.1.0",
+    "pylint==3.3.7"
+    ]
+dev = [
+    "biostructbenchmark[test,lint]",
+    "twine==6.1.0"    
+]
