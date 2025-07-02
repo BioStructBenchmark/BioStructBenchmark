@@ -16,8 +16,7 @@ classifiers = [
 dependencies = [
     "biopython>=1.85",
     "numpy>=2.3.1"
-    ]
-
+]
 
 [project.urls]
 "Homepage" = "https://github.com/BioStructBenchmark/BioStructBenchmark"
