@@ -11,6 +11,7 @@ def validate_file(file_path: str, file_type: str) -> bool:
     parser_type = {"MMCIF": MMCIFParser(), "PDB": PDBParser()}
     file_parser = parser_type[file_type]
     try:
+        file_parser.get_structure("xxx", file_path)  # Works if valid file
         return True
     except:
         raise TypeError(f"{file_path} is not a valid {file_type.lower()} file")
@@ -18,7 +19,7 @@ def validate_file(file_path: str, file_type: str) -> bool:
 
 def main() -> None:
     args = arg_parser()
-    print(validate_file(args.file_path, args.file_type))
+    validate_file(args.file_path, args.file_type)
 
 
 if __name__ == "__main__":
