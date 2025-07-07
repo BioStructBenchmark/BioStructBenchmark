@@ -6,23 +6,27 @@ import ast
 
 
 def validate_file_path(file_path: str) -> str:
-    """Validate file_path input"""
-    if os.path.isfile(file_path):
-        return file_path
-    else:
-        raise argparse.ArgumentTypeError(f"{file_path} is not a valid file path")
+    """Validate file_path and readability"""
+    checks = [
+        (os.path.exists(file_path), "Path does not exist"),
+        (os.path.isfile(file_path), "Not a valid file"),
+        (os.access(file_path, os.R_OK), "No read permission"),
+        (os.path.getsize(file_path) > 0, "File is empty"),
+    ]
+    for condition, error_message in checks:
+        if not condition:
+            raise ValueError(f"File Validation Error: {error_message}")
+    return file_path
 
 
 def file_type(file_type: str) -> str:
-    """Ensure input file_type is mmcif or pdb"""
-    if file_type.lower() == "mmcif":
-        return "MMCIF"
+    """Ensure input file_type is pdb or mmcif"""
     if file_type.lower() == "pdb":
         return "PDB"
+    elif file_type.lower() in ("cif", "mmcif"):
+        return "MMCIF"
     else:
-        raise argparse.ArgumentTypeError(
-            "file_type argument must be either MMCIF or PDB"
-        )
+        raise ValueError("file_type argument must be either MMCIF or PDB")
 
 
 # TODO: improve by loading package info
