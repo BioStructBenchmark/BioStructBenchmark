@@ -3,13 +3,15 @@
 import argparse
 import os
 import ast
+from pathlib import Path
 
 
-def validate_file_path(file_path: str) -> str:
+def validate_file_path(input_path: str) -> Path:
     """Validate file_path and readability"""
+    file_path = Path(input_path)
     checks = [
-        (os.path.exists(file_path), "Path does not exist"),
-        (os.path.isfile(file_path), "Not a valid file"),
+        (Path.exists(file_path), "Path does not exist"),
+        (Path.is_file(file_path), "Not a valid file"),
         (os.access(file_path, os.R_OK), "No read permission"),
         (os.path.getsize(file_path) > 0, "File is empty"),
     ]
