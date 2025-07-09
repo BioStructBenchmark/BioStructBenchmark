@@ -34,7 +34,8 @@ lint = [
     "pylint==3.3.7"
     ]
 dev = [
-    "biostructbenchmark[test,lint]",
+    {include-group = "test"},
+    {include-group = "lint"},
     "twine==6.1.0"    
 ]
 
