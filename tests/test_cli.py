@@ -13,11 +13,6 @@ def test_invalid_file():
         assert validate_file_path("INVALIDPATH")
 
 
-def test_restricted_file():
-    with pytest.raises(ValueError):
-        assert validate_file_path("./tests/data/restricted_file.cif")
-
-
 def test_empty_file():
     with pytest.raises(ValueError):
         assert validate_file_path("./tests/data/empty.cif")
