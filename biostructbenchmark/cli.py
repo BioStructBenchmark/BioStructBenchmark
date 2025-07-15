@@ -21,16 +21,6 @@ def validate_file_path(input_path: str) -> Path:
     return file_path
 
 
-def file_type(file_type: str) -> str:
-    """Ensure input file_type is pdb or mmcif"""
-    if file_type.lower() == "pdb":
-        return "PDB"
-    elif file_type.lower() in ("cif", "mmcif"):
-        return "MMCIF"
-    else:
-        raise ValueError("file_type argument must be either MMCIF or PDB")
-
-
 # TODO: improve by loading package info
 def get_version() -> str:
     """Get version from __init__.py"""
@@ -56,9 +46,6 @@ def arg_parser() -> argparse.Namespace:
     # File arguments
     parser.add_argument(
         "file_path", type=validate_file_path, help="Path to input file(s)"
-    )
-    parser.add_argument(
-        "file_type", type=file_type, help="Specify the type of file(s) to be read"
     )
 
     # Parse the command line arguments
