@@ -2,13 +2,13 @@
 
 """Entry point for biostructbenchmark"""
 
-from biostructbenchmark.core.io import validate_file, file_name
+from biostructbenchmark.core.io import validate_file
 from biostructbenchmark.cli import arg_parser  # change to parser
 
 
 def main() -> None:
     args = arg_parser()
-    validate_file(args.file_path, args.file_type)
+    print(validate_file(args.file_path))
 
 
 if __name__ == "__main__":

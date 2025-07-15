@@ -4,8 +4,8 @@ from biostructbenchmark.cli import file_type, validate_file_path
 
 
 def test_validate_file_path():
-    correct_path = Path("./tests/data/1bom.cif")
-    assert validate_file_path("./tests/data/1bom.cif") == correct_path
+    correct_path = Path("./tests/data/proteins_cif/1bom.cif")
+    assert validate_file_path("./tests/data/proteins_cif/1bom.cif") == correct_path
 
 
 def test_invalid_file():
