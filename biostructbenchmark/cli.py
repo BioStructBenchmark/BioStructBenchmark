@@ -45,7 +45,14 @@ def arg_parser() -> argparse.Namespace:
 
     # File arguments
     parser.add_argument(
-        "file_path", type=validate_file_path, help="Path to input file(s)"
+        "file_path_observed",
+        type=validate_file_path,
+        help="Path to observed structure file",
+    )
+    parser.add_argument(
+        "file_path_predicted",
+        type=validate_file_path,
+        help="Path to predicted structure file",
     )
 
     # Parse the command line arguments

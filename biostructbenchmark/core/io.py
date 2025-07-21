@@ -1,24 +1,40 @@
-"""cif/pdb file handling"""
+"""Structure file handling"""
 
 # TODO: handle batches of files
 # TODO: handle missing atoms/residues
 
-from Bio.PDB import MMCIFParser, PDBParser
+from typing import Optional
+from Bio.PDB import MMCIFParser, PDBParser, Structure
+
 from pathlib import Path
+
+
+parser = None
+parser_type = {".cif": MMCIFParser(), ".pdb": PDBParser()}
+
+
+def file_type(file_path: Path) -> str:
+    return str(file_path.suffix).lower()
+
+
+def file_parser(file_path: Path) -> MMCIFParser | PDBParser:
+    try:
+        return parser_type[file_type(file_path)]
+    except KeyError:
+        raise
 
 
 def validate_file(file_path: Path) -> bool:
     """Validate a single file with a specified type"""
     file_type = str(file_path.suffix).lower()
-    parser_type = {".cif": MMCIFParser(), ".pdb": PDBParser()}
-
+    try:
+        parser = file_parser(file_path)
     # Unknown filetypes are to be ignored so that mixed-type folders will be handled gracefully
-    if file_type not in parser_type:
+    except:
         return False
-    file_parser = parser_type[file_type]
 
     try:
-        structure = file_parser.get_structure("foo", file_path)  # Works iff valid file
+        structure = parser.get_structure("foo", file_path)  # Works iff valid file
         next(structure.get_models())  # Works iff a model can be extracted
     except ValueError as e:
         print(
@@ -30,3 +46,17 @@ def validate_file(file_path: Path) -> bool:
         return False
     else:
         return True
+
+
+def get_structure(file_path: Path) -> Optional[Structure.Structure]:
+    """Load and return structure from file, or None if invalid."""
+    if not validate_file(file_path):
+        return None
+
+    try:
+        parser = file_parser(file_path)
+        structure = parser.get_structure("structure", file_path)
+        return structure
+    except Exception as e:
+        print(f"Error loading structure from {file_path}: {e}")
+        return None
