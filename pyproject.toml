@@ -8,14 +8,30 @@ authors = [
 ]
 readme = {file = "README.md", content-type = "text/markdown"}
 license = "MIT"
-requires-python = ">=3.13.0"
+requires-python = ">=3.8.0"
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
 ]
 dependencies = [
+    # Core biological computing
     "biopython>=1.85",
-    "numpy>=2.3.1"
+
+    # Core scientific computing stack
+    "numpy>=2.3.1",
+    "scipy>=1.7.0,<2.0.0",
+
+    # Data manipulation and analysis
+    "pandas>=1.3.0,<3.0.0",
+
+    # Visualization and plotting
+    "matplotlib>=3.5.0,<4.0.0",
+    "seaborn>=0.11.0,<1.0.0",
+
+    # Network analysis for H-bond networks
+    "networkx>=2.6,<4.0",   # Graph algorithms, 3.x is stable
+
+
 ]
 
 [project.urls]
