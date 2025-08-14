@@ -1,0 +1,33 @@
+BioStructBenchmark/
+├── LICENSE                           ✅ MIT License
+├── pyproject.toml                     ✅ Package configuration  
+├── biostructbenchmark/
+│   ├── __init__.py                    ✅ Package root
+│   ├── __main__.py                    ✅ CLI entry point
+│   ├── cli.py                         ✅ Argument parsing
+│   ├── core/                          
+│   │   ├── __init__.py                ✅ Core module exports
+│   │   ├── alignment.py               ✅ Structure alignment & RMSD
+│   │   ├── io.py                      ✅ PDB/CIF file handling
+│   │   ├── metrics.py                 ✅ Error decomposition
+│   ├── analysis/                      ✅ DIRECTORY Created, programs relocated
+│   │   ├── __init__.py                ✅ Exists, not tested (in correct directory/name)
+│   │   ├── bfactor.py                 ✅ Exists, not tested (in correct directory/name)
+│   │   ├── consensus.py               ✅ Exists, not tested (in correct directory/name)
+│   │   ├── secondary.py               ✅ Exists, not tested (in correct directory/name)
+│   │   ├── mutations.py               ✅ Exists, not tested (in correct directory/name)
+│   │   └── curves.py                  ✅ Moved to correct location/name (in correct directory/name)
+│   └── visualization/                 
+│       ├── __init__.py                ✅ Module exports
+│       ├── structure.py               ✅ Exists, not tested
+│       ├── curves_plots.py            ✅ Moved to correct location/name
+│       └── residue_plots.py           ❌ (referenced but not implemented)
+└── tests/
+    ├── test_cli.py                    ✅ CLI validation tests
+    ├── test_io.py                     ✅ File I/O tests
+    ├── test_parser_management.py      ✅ Parser caching tests
+    ├── test_visualization.py          ✅ Visualization tests
+    ├── dependency_test.py             ✅ Dependency validation
+    ├── advanced_integration_test.py   ✅ Integration testing
+    ├── comprehensive_tests.py         ✅ Complete test suite
+    └── test_data/                     ❓ Referenced but not provided

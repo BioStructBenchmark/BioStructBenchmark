@@ -1,0 +1,57 @@
+BioStructBenchmark/
+├── LICENSE ✅ (MIT License)
+├── pyproject.toml ✅ (Dependencies may need to be modified based on the updated packages)
+├── README.md ⚠️ (Needs updating with latest features)
+│
+├── biostructbenchmark/
+│   ├── __init__.py ✅ (Version 0.0.1)
+│   ├── __main__.py ⚠️ (Needs integration with new features)
+│   ├── cli.py ⚠️ (Missing --curves, --bfactor, --visualize flags)
+│   │
+│   ├── core/ ✅ (All core modules implemented, not fully tested)
+│   │   ├── __init__.py ✅
+│   │   ├── alignment.py ✅ (RMSD, per-residue analysis)
+│   │   ├── io.py ✅ (PDB/CIF parsing with caching)
+│   │   ├── metrics.py ✅ (Error decomposition, statistics)
+│   │
+│   ├── analysis/ ⚠️ (Directory exists but needs testing to ensure proper outputs and data handling)
+│   │   ├── __init__.py ✅ 
+│   │   ├── consensus.py ✅ 
+│   │   ├── bfactor.py ✅ 
+│   │   ├── secondary.py ✅ 
+│   │   ├── mutations.py ✅ 
+│   │   └── curves.py ✅ 
+│   │
+│   └── visualization/ ⚠️ (Partially implemented, requires testing)
+│       ├── __init__.py ✅ (Has conditional imports)
+│       ├── structure.py ✅ NEW (Compact Py3Dmol implementation, 283 lines)
+│       ├── residue_plots.py ✅
+│       ├── curves_plots.py ✅
+│       └── plots.py ✅ 
+│
+└── tests/
+    ├── test_cli.py ✅ (Basic tests)
+    ├── test_io.py ✅ (I/O validation tests)
+    ├── test_parser_management.py ✅ (Parser caching tests)
+    ├── test_comprehensive.py ✅ NEW (Full test suite)
+    ├── test_alignment.py ❌ (Missing)
+    ├── test_metrics.py ❌ (Missing)
+    ├── test_visualization.py ❌ (Missing)
+    ├── dependency_test.py ✅ (Checks all dependencies)
+    ├── advanced_integration_test.py ✅ (Integration validation)
+    └── data/ ✅ (Referenced but not shown)
+	├── empty.cif ✅
+	│
+	├── invalid.cif ✅
+	│
+	├── invalid.extension ✅
+	│
+	├── invalid.pdb ✅
+	│
+	├── no_extension ✅
+	│
+        ├── proteins_pdb/ ✅
+        │   └── 1bom.pdb ✅
+        ├── proteins_cif/ ✅
+        │   └── 1bom.cif ✅
+        └── empty.cif ✅
