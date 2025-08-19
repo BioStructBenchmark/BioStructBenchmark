@@ -3,10 +3,9 @@ Sequence alignment and chain matching functionality
 """
 
 from typing import Dict, List
-from Bio import pairwise2
+from Bio.Align import PairwiseAligner
 from Bio.PDB.Polypeptide import is_aa
 from Bio.SeqUtils import seq1
-from Bio.pairwise2 import align
 from Bio.PDB import Structure
 from dataclasses import dataclass
 
@@ -95,12 +94,23 @@ def calculate_sequence_identity(seq1: str, seq2: str) -> float:
     if not seq1 or not seq2:
         return 0.0
     
-    alignments = pairwise2.align.globalxx(seq1, seq2)
+    aligner = PairwiseAligner()
+    # Default scoring equivalent to globalxx
+    aligner.match_score = 1
+    aligner.mismatch_score = 0
+    aligner.open_gap_score = 0
+    aligner.extend_gap_score = 0
+    
+    alignments = aligner.align(seq1, seq2)
     if not alignments:
         return 0.0
     
     best_alignment = alignments[0]
-    aligned_seq1, aligned_seq2 = best_alignment.seqA, best_alignment.seqB
+    alignment_str = str(best_alignment)
+    lines = alignment_str.strip().split('\n')
+    # Extract sequences from formatted alignment (3rd field after splitting by spaces)
+    aligned_seq1 = lines[0].split()[2] if len(lines) >= 1 and len(lines[0].split()) >= 3 else ""
+    aligned_seq2 = lines[2].split()[2] if len(lines) >= 3 and len(lines[2].split()) >= 3 else ""
     
     matches = sum(1 for a, b in zip(aligned_seq1, aligned_seq2) if a == b and a != "-")
     total_aligned = len(aligned_seq1)
@@ -223,12 +233,23 @@ def align_specific_protein_chains(exp_structure: Structure, comp_structure: Stru
     comp_seq = "".join(seq1(r.get_resname()) for r in comp_residues)
     
     # Align sequences
-    alignments = align.globalxx(exp_seq, comp_seq)
+    aligner = PairwiseAligner()
+    # Default scoring equivalent to globalxx
+    aligner.match_score = 1
+    aligner.mismatch_score = 0
+    aligner.open_gap_score = 0
+    aligner.extend_gap_score = 0
+    
+    alignments = aligner.align(exp_seq, comp_seq)
     if not alignments:
         return {}
     
     best = alignments[0]
-    exp_aligned, comp_aligned = best.seqA, best.seqB
+    alignment_str = str(best)
+    lines = alignment_str.strip().split('\n')
+    # Extract sequences from formatted alignment (3rd field after splitting by spaces)
+    exp_aligned = lines[0].split()[2] if len(lines) >= 1 and len(lines[0].split()) >= 3 else ""
+    comp_aligned = lines[2].split()[2] if len(lines) >= 3 and len(lines[2].split()) >= 3 else ""
     
     # Create residue mapping
     mapping = {}
@@ -297,13 +318,22 @@ def align_specific_dna_chains(exp_structure: Structure, comp_structure: Structur
         return {}
     
     # Align sequences using global alignment with match/mismatch scores
-    alignments = pairwise2.align.globalms(exp_seq, comp_seq, 2, -1, -1, -0.5)
+    aligner = PairwiseAligner()
+    aligner.match_score = 2
+    aligner.mismatch_score = -1
+    aligner.open_gap_score = -1
+    aligner.extend_gap_score = -0.5
+    
+    alignments = aligner.align(exp_seq, comp_seq)
     if not alignments:
         return {}
     
     best_alignment = alignments[0]
-    aligned_exp = best_alignment[0]
-    aligned_comp = best_alignment[1]
+    alignment_str = str(best_alignment)
+    lines = alignment_str.strip().split('\n')
+    # Extract sequences from formatted alignment (3rd field after splitting by spaces)
+    aligned_exp = lines[0].split()[2] if len(lines) >= 1 and len(lines[0].split()) >= 3 else ""
+    aligned_comp = lines[2].split()[2] if len(lines) >= 3 and len(lines[2].split()) >= 3 else ""
     
     # Create residue mapping
     mapping = {}

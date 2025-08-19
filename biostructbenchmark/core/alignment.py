@@ -8,10 +8,9 @@ from typing import Dict, List
 from dataclasses import dataclass
 from datetime import datetime
 
-from Bio import pairwise2
+from Bio.Align import PairwiseAligner
 from Bio.PDB.Polypeptide import is_aa
 from Bio.SeqUtils import seq1
-from Bio.pairwise2 import align
 from Bio.PDB import Structure, PDBIO, MMCIFIO
 import copy
 
@@ -216,15 +215,22 @@ def align_dna_sequences(experimental_structure, computational_structure):
             continue
 
         # Perform sequence alignment using global alignment with match/mismatch scores
-        alignments = pairwise2.align.globalms(
-            exp_sequence, comp_sequence, 2, -1, -1, -0.5
-        )
+        aligner = PairwiseAligner()
+        aligner.match_score = 2
+        aligner.mismatch_score = -1
+        aligner.open_gap_score = -1
+        aligner.extend_gap_score = -0.5
+        
+        alignments = aligner.align(exp_sequence, comp_sequence)
         if not alignments:
             continue
 
         best_alignment = alignments[0]
-        aligned_exp = best_alignment[0]
-        aligned_comp = best_alignment[1]
+        alignment_str = str(best_alignment)
+        lines = alignment_str.strip().split('\n')
+        # Extract sequences from formatted alignment (3rd field after splitting by spaces)
+        aligned_exp = lines[0].split()[2] if len(lines) >= 1 and len(lines[0].split()) >= 3 else ""
+        aligned_comp = lines[2].split()[2] if len(lines) >= 3 and len(lines[2].split()) >= 3 else ""
 
         # Process alignment to create nucleotide mapping
         exp_idx = 0
@@ -289,12 +295,23 @@ def align_protein_sequences(exp_structure, comp_structure):
             continue
 
         # Global alignment
-        alignments = align.globalxx(exp_seq, comp_seq)
+        aligner = PairwiseAligner()
+        # Default scoring (match=1, mismatch=0, no gap penalty) equivalent to globalxx
+        aligner.match_score = 1
+        aligner.mismatch_score = 0
+        aligner.open_gap_score = 0
+        aligner.extend_gap_score = 0
+        
+        alignments = aligner.align(exp_seq, comp_seq)
         if not alignments:
             continue
 
         best = alignments[0]
-        exp_aligned, comp_aligned = best.seqA, best.seqB
+        alignment_str = str(best)
+        lines = alignment_str.strip().split('\n')
+        # Extract sequences from formatted alignment (3rd field after splitting by spaces)
+        exp_aligned = lines[0].split()[2] if len(lines) >= 1 and len(lines[0].split()) >= 3 else ""
+        comp_aligned = lines[2].split()[2] if len(lines) >= 3 and len(lines[2].split()) >= 3 else ""
 
         # Map aligned positions
         exp_idx = comp_idx = 0
