@@ -55,5 +55,17 @@ def arg_parser() -> argparse.Namespace:
         help="Path to predicted structure file",
     )
 
+    # Output options
+    parser.add_argument(
+        "-o", "--output-dir",
+        type=str,
+        help="Directory to save aligned structures (default: current directory)",
+    )
+    parser.add_argument(
+        "--save-structures",
+        action="store_true",
+        help="Save aligned structures to output files",
+    )
+
     # Parse the command line arguments
     return parser.parse_args()

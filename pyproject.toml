@@ -25,6 +25,11 @@ dependencies = [
 requires = ["setuptools>=80.9.0"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["biostructbenchmark*"]
+exclude = ["tests*", "output_test*", "*output*"]
+
 [dependency-groups]
 test = [
     "pytest==8.4.1"
