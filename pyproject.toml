@@ -36,7 +36,7 @@ lint = [
 dev = [
     {include-group = "test"},
     {include-group = "lint"},
-    "twine==6.1.0"    
+    "twine==6.2.0"    
 ]
 
 [tool.pytest.ini_options]
