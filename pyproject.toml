@@ -32,7 +32,7 @@ exclude = ["tests*", "output_test*", "*output*"]
 
 [dependency-groups]
 test = [
-    "pytest==8.4.1"
+    "pytest==8.4.2"
     ]
 lint = [
     "black==25.9.0",
