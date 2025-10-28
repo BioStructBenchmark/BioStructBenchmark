@@ -32,13 +32,13 @@ exclude = ["tests*", "output_test*", "*output*"]
 
 [dependency-groups]
 test = [
-    "pytest==8.4.1",
+    "pytest==8.4.2",
     "pytest-cov==6.1.0",
     "pytest-benchmark==5.2.0",
     "hypothesis==7.0.3"
     ]
 lint = [
-    "black==25.1.0",
+    "black==25.9.0",
     "pylint==3.3.7"
     ]
 dev = [
