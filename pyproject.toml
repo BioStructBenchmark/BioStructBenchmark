@@ -32,7 +32,10 @@ exclude = ["tests*", "output_test*", "*output*"]
 
 [dependency-groups]
 test = [
-    "pytest==8.4.2"
+    "pytest==8.4.2",
+    "pytest-cov==6.1.0",
+    "pytest-benchmark==5.2.0",
+    "hypothesis==7.0.3"
     ]
 lint = [
     "black==25.9.0",
@@ -46,6 +49,15 @@ dev = [
 
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = "-ra -q"
+addopts = "-ra -q --cov=biostructbenchmark --cov-report=term-missing --cov-report=html"
 pythonpath = "."
 testpaths = "tests"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "benchmark: marks tests as benchmark tests",
+]
+
+[tool.hypothesis]
+# Disable example database to prevent .hypothesis/ directory creation
+database = "none"
