@@ -11,28 +11,39 @@ BioStructBenchmark is a Python tool for analyzing protein-DNA complexes. It comp
 - If the task requires significant domain-specific knowledge, research online in bioinformatics-related sources.
 
 ### Installation
+
+This project uses [uv](https://docs.astral.sh/uv/) for fast, reliable package management.
+
 ```bash
-pip install -e .[dev]
+# Install uv if you don't have it
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# Or: brew install uv (macOS), pipx install uv, or pip install uv
+
+# Install project with all dev dependencies
+uv sync
+
+# Activate the virtual environment (optional - uv run handles this automatically)
+source .venv/bin/activate
 ```
 
 ### Testing
 - Always create Pytest unit tests for new features (functions, classes, etc).
 - Tests live in `tests/`
 ```bash
-pytest                    # Run all tests
-pytest tests/test_io.py   # Run specific test file
+uv run pytest                    # Run all tests
+uv run pytest tests/test_io.py   # Run specific test file
 ```
 
 ### Linting and Formatting
 ```bash
-black .                   # Format code
-pylint biostructbenchmark # Lint code
+uv run black .                   # Format code
+uv run pylint biostructbenchmark # Lint code
 ```
 
 ### Building and Distribution
 ```bash
-python -m build          # Build package
-twine upload dist/*      # Upload to PyPI
+uv build                 # Build package
+uv run twine upload dist/*      # Upload to PyPI
 ```
 
 ### Core Structure
