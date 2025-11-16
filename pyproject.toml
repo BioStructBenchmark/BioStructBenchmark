@@ -35,7 +35,7 @@ test = [
     "pytest==8.4.2"
     ]
 lint = [
-    "black==25.9.0",
+    "black==25.11.0",
     "pylint==3.3.7"
     ]
 dev = [
