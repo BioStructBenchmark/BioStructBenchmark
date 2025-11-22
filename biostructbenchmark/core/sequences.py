@@ -2,7 +2,6 @@
 Sequence alignment and chain matching functionality
 """
 
-from typing import Dict, List
 from Bio.Align import PairwiseAligner
 from Bio.PDB.Polypeptide import is_aa
 from Bio.SeqUtils import seq1
@@ -32,7 +31,7 @@ class ChainMatch:
     rmsd: float
 
 
-def classify_chains(structure: Structure) -> tuple[List[str], List[str]]:
+def classify_chains(structure: Structure) -> tuple[list[str], list[str]]:
     """
     Classify chains as protein or DNA based on residue content.
     
@@ -118,7 +117,7 @@ def calculate_sequence_identity(sequence1: str, sequence2: str) -> float:
     return matches / total_aligned if total_aligned > 0 else 0.0
 
 
-def match_chains_by_similarity(exp_structure: Structure, comp_structure: Structure) -> List[ChainMatch]:
+def match_chains_by_similarity(exp_structure: Structure, comp_structure: Structure) -> list[ChainMatch]:
     """
     Match chains between experimental and computational structures based on sequence similarity.
     
@@ -200,7 +199,7 @@ def match_chains_by_similarity(exp_structure: Structure, comp_structure: Structu
 
 
 def align_specific_protein_chains(exp_structure: Structure, comp_structure: Structure,
-                                 exp_chain_id: str, comp_chain_id: str) -> Dict[str, str]:
+                                 exp_chain_id: str, comp_chain_id: str) -> dict[str, str]:
     """
     Align protein sequences for specific chain pairs.
     
@@ -272,7 +271,7 @@ def align_specific_protein_chains(exp_structure: Structure, comp_structure: Stru
 
 
 def align_specific_dna_chains(exp_structure: Structure, comp_structure: Structure,
-                             exp_chain_id: str, comp_chain_id: str) -> Dict[str, str]:
+                             exp_chain_id: str, comp_chain_id: str) -> dict[str, str]:
     """
     Align DNA sequences for specific chain pairs.
     

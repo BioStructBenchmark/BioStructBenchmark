@@ -3,7 +3,6 @@ Structural alignment and RMSD calculations
 """
 
 import numpy as np
-from typing import Dict, List
 from Bio.SVDSuperimposer import SVDSuperimposer
 from Bio.PDB import Structure
 
@@ -31,12 +30,12 @@ def superimpose_structures(exp_coords: np.ndarray, comp_coords: np.ndarray) -> t
 
 
 def calculate_per_residue_rmsd(
-    exp_atoms: Dict[str, List], 
-    comp_atoms: Dict[str, List], 
-    mapping: Dict[str, str],
-    rotation_matrix: np.ndarray = None,
-    translation_vector: np.ndarray = None
-) -> Dict[str, float]:
+    exp_atoms: dict[str, list],
+    comp_atoms: dict[str, list],
+    mapping: dict[str, str],
+    rotation_matrix: np.ndarray | None = None,
+    translation_vector: np.ndarray | None = None
+) -> dict[str, float]:
     """
     Calculate per-residue RMSD for aligned residues.
 

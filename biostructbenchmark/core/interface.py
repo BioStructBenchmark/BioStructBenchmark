@@ -2,7 +2,6 @@
 Protein-DNA interface detection and analysis
 """
 
-from typing import Dict, List
 from Bio.PDB.Polypeptide import is_aa
 from Bio.PDB import Structure
 from .sequences import DNA_NUCLEOTIDE_MAP
@@ -13,10 +12,10 @@ INTERFACE_DISTANCE_THRESHOLD = 5.0
 
 def find_interface_residues(
     structure: Structure,
-    protein_chains: List[str],
-    dna_chains: List[str],
+    protein_chains: list[str],
+    dna_chains: list[str],
     threshold: float = INTERFACE_DISTANCE_THRESHOLD,
-) -> Dict[str, List[str]]:
+) -> dict[str, list[str]]:
     """
     Find residues at the protein-DNA interface.
     
@@ -29,7 +28,7 @@ def find_interface_residues(
     Returns:
         Dict mapping chain_id to list of interface residue IDs
     """
-    interface_residues = {}
+    interface_residues: dict[str, list[str]] = {}
     
     for model in structure:
         # Get all protein and DNA atoms

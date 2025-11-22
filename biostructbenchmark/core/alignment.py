@@ -4,7 +4,6 @@ Streamlined protein-DNA complex alignment module
 
 from pathlib import Path
 import numpy as np
-from typing import Dict, List
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -31,7 +30,7 @@ from .sequences import (
 )
 from .interface import find_interface_residues, INTERFACE_DISTANCE_THRESHOLD
 
-def create_output_directory_structure(base_output_dir: Path = None) -> Path:
+def create_output_directory_structure(base_output_dir: Path | None = None) -> Path:
     """
     Create standardized output directory structure with timestamped subdirectory.
     
@@ -119,9 +118,9 @@ def save_aligned_structures(
 class AlignmentResult:
     """Result of protein-DNA complex alignment"""
 
-    sequence_mapping: Dict[str, str]  # exp_residue_id -> comp_residue_id
+    sequence_mapping: dict[str, str]  # exp_residue_id -> comp_residue_id
     structural_rmsd: float
-    per_residue_rmsd: Dict[str, float]  # residue_id -> RMSD
+    per_residue_rmsd: dict[str, float]  # residue_id -> RMSD
     protein_rmsd: float
     dna_rmsd: float
     interface_rmsd: float
@@ -129,10 +128,10 @@ class AlignmentResult:
     translation_vector: np.ndarray
     orientation_error: float  # degrees
     translational_error: float  # Angstroms
-    protein_chains: List[str]
-    dna_chains: List[str]
-    interface_residues: Dict[str, List[str]]  # chain_id -> residue_ids
-    output_files: tuple[Path, Path] = None  # (experimental_path, computational_aligned_path)
+    protein_chains: list[str]
+    dna_chains: list[str]
+    interface_residues: dict[str, list[str]]  # chain_id -> residue_ids
+    output_files: tuple[Path, Path] | None = None  # (experimental_path, computational_aligned_path)
 
 
 def align_dna_sequences(experimental_structure, computational_structure):
@@ -335,7 +334,7 @@ def align_protein_dna_complex(
     experimental_structure: Structure,
     computational_structure: Structure,
     interface_threshold: float = INTERFACE_DISTANCE_THRESHOLD,
-    output_dir: Path = None,
+    output_dir: Path | None = None,
     save_structures: bool = False,
 ) -> AlignmentResult:
     """

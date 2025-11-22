@@ -3,7 +3,6 @@
 # TODO: handle batches of files
 # TODO: handle missing atoms/residues
 
-from typing import Optional
 from Bio.PDB import MMCIFParser, PDBParser, Structure
 
 from pathlib import Path
@@ -47,7 +46,7 @@ def validate_file(file_path: Path) -> bool:
         return True
 
 
-def get_structure(file_path: Path) -> Optional[Structure.Structure]:
+def get_structure(file_path: Path) -> Structure.Structure | None:
     """Load and return structure from file, or None if invalid."""
     if not validate_file(file_path):
         return None
