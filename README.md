@@ -13,10 +13,30 @@ Incorporates:
 -DNA Geometry Analysis using CURVES+
 ## Installation
 
-To install BioStructBenchMark, run 'pip install biostructbenchmark'
+To install BioStructBenchmark:
+```bash
+pip install biostructbenchmark
+```
 
 ## Development
 
-To install BioStructBenchmark for development, run:
-`pip install -e BioStructBenchmark .[dev]'
+This project uses [uv](https://docs.astral.sh/uv/) for fast, reliable package management.
+
+To set up the development environment:
+```bash
+# Install uv if you don't have it
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Clone and install with dev dependencies
+git clone https://github.com/BioStructBenchmark/BioStructBenchmark.git
+cd BioStructBenchmark
+uv sync
+
+# Run tests
+uv run pytest
+
+# Format and lint code
+uv run black .
+uv run pylint biostructbenchmark
+```
 
