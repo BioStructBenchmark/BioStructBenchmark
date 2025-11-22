@@ -9,7 +9,6 @@ from Bio.PDB import MMCIFParser, PDBParser, Structure
 from pathlib import Path
 
 
-parser = None
 parser_type = {".cif": MMCIFParser(), ".pdb": PDBParser()}
 
 
@@ -30,7 +29,7 @@ def validate_file(file_path: Path) -> bool:
     try:
         parser = file_parser(file_path)
     # Unknown filetypes are to be ignored so that mixed-type folders will be handled gracefully
-    except:
+    except KeyError:
         return False
 
     try:

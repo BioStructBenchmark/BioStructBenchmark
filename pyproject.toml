@@ -21,6 +21,9 @@ dependencies = [
 [project.urls]
 "Homepage" = "https://github.com/BioStructBenchmark/BioStructBenchmark"
 
+[project.scripts]
+biostructbenchmark = "biostructbenchmark.__main__:main"
+
 [build-system]
 requires = ["setuptools>=80.9.0"]
 build-backend = "setuptools.build_meta"
@@ -49,3 +52,6 @@ minversion = "6.0"
 addopts = "-ra -q"
 pythonpath = "."
 testpaths = "tests"
+markers = [
+    "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
+]

@@ -89,29 +89,29 @@ def get_dna_sequence(structure: Structure, chain_id: str) -> str:
     return ""
 
 
-def calculate_sequence_identity(seq1: str, seq2: str) -> float:
+def calculate_sequence_identity(sequence1: str, sequence2: str) -> float:
     """Calculate sequence identity between two sequences using pairwise alignment."""
-    if not seq1 or not seq2:
+    if not sequence1 or not sequence2:
         return 0.0
-    
+
     aligner = PairwiseAligner()
     # Default scoring equivalent to globalxx
     aligner.match_score = 1
     aligner.mismatch_score = 0
     aligner.open_gap_score = 0
     aligner.extend_gap_score = 0
-    
-    alignments = aligner.align(seq1, seq2)
+
+    alignments = aligner.align(sequence1, sequence2)
     if not alignments:
         return 0.0
-    
+
     best_alignment = alignments[0]
     alignment_str = str(best_alignment)
     lines = alignment_str.strip().split('\n')
     # Extract sequences from formatted alignment (3rd field after splitting by spaces)
     aligned_seq1 = lines[0].split()[2] if len(lines) >= 1 and len(lines[0].split()) >= 3 else ""
     aligned_seq2 = lines[2].split()[2] if len(lines) >= 3 and len(lines[2].split()) >= 3 else ""
-    
+
     matches = sum(1 for a, b in zip(aligned_seq1, aligned_seq2) if a == b and a != "-")
     total_aligned = len(aligned_seq1)
     

@@ -5,7 +5,6 @@
 from biostructbenchmark.core.alignment import align_protein_dna_complex
 from biostructbenchmark.cli import arg_parser
 from biostructbenchmark.core.io import get_structure
-from Bio import PDB
 
 
 def main() -> None:

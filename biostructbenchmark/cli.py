@@ -2,8 +2,8 @@
 
 import argparse
 import os
-import ast
 from pathlib import Path
+from importlib.metadata import version, PackageNotFoundError
 
 
 def validate_file_path(input_path: str) -> Path:
@@ -21,13 +21,12 @@ def validate_file_path(input_path: str) -> Path:
     return file_path
 
 
-# TODO: improve by loading package info
 def get_version() -> str:
-    """Get version from __init__.py"""
-    for line in open("biostructbenchmark/__init__.py"):
-        if line.startswith("__version__ = "):
-            return ast.literal_eval(line.split("=")[1].strip())
-    return "Undefined version"
+    """Get version from package metadata"""
+    try:
+        return version("BioStructBenchmark")
+    except PackageNotFoundError:
+        return "0.0.1"  # Fallback for development
 
 
 def arg_parser() -> argparse.Namespace:
@@ -39,7 +38,7 @@ def arg_parser() -> argparse.Namespace:
         "-v",
         "--version",
         action="version",
-        version="0.0.1",
+        version=get_version(),
         help="View BioStructBenchmark version number",
     )
 
