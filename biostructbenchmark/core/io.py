@@ -28,7 +28,10 @@ def validate_file(file_path: Path) -> bool:
     try:
         parser = file_parser(file_path)
     # Unknown filetypes are to be ignored so that mixed-type folders will be handled gracefully
-    except KeyError:
+    except (KeyError, Exception) as e:
+        # Catch parser selection errors
+        if not isinstance(e, KeyError):
+            print(f"Error selecting parser for {file_path}: {e}")
         return False
 
     try:
