@@ -1,0 +1,4 @@
+# file: /var/home/delta/dev/delta/BioStructBenchmark/biostructbenchmark/core/alignment.py
+# hypothesis_version: 6.148.2
+
+[-0.5, 0.0, '%Y%m%d_%H%M%S', '-', 'aligned', 'alignments', 'analysis', 'dna', 'inf', 'logs', 'protein', 'results']

@@ -20,6 +20,7 @@ from .structural import (
     calculate_interface_rmsd,
     calculate_ligand_rmsd,
     calculate_rmsd_from_coords,
+    calculate_dockq,
 )
 from .atoms import get_backbone_atoms, is_protein_residue, is_nucleic_acid_residue
 from .sequences import (
@@ -147,6 +148,7 @@ class AlignmentResult:
     backbone_protein_rmsd: float  # Protein backbone RMSD (Cα atoms)
     backbone_dna_rmsd: float  # DNA/RNA backbone RMSD (P atoms)
     fnat: float  # Fraction of native contacts (0.0-1.0)
+    dockq: float  # DockQ combined quality score (0.0-1.0)
 
     # Transformation matrices
     rotation_matrix: np.ndarray  # From full structure superimposition
@@ -439,6 +441,7 @@ def align_protein_dna_complex(
             backbone_protein_rmsd=float("inf"),
             backbone_dna_rmsd=float("inf"),
             fnat=0.0,
+            dockq=0.0,
             rotation_matrix=np.eye(3),
             translation_vector=np.zeros(3),
             orientation_error=0.0,
@@ -520,6 +523,7 @@ def align_protein_dna_complex(
             backbone_protein_rmsd=float("inf"),
             backbone_dna_rmsd=float("inf"),
             fnat=0.0,
+            dockq=0.0,
             rotation_matrix=np.eye(3),
             translation_vector=np.zeros(3),
             orientation_error=0.0,
@@ -719,6 +723,12 @@ def align_protein_dna_complex(
         sequence_mapping
     )
 
+    # ===================================================================
+    # DockQ: Combined Quality Score
+    # ===================================================================
+
+    dockq = calculate_dockq(capri_i_rmsd, capri_l_rmsd, fnat)
+
     # Calculate orientation and translational errors
     orientation_error = calculate_orientation_error(rotation_matrix)
     translational_error = np.linalg.norm(translation_vector)
@@ -751,6 +761,7 @@ def align_protein_dna_complex(
         backbone_protein_rmsd=backbone_protein_rmsd,
         backbone_dna_rmsd=backbone_dna_rmsd,
         fnat=fnat,
+        dockq=dockq,
         # Transformation matrices
         rotation_matrix=rotation_matrix,
         translation_vector=translation_vector,

@@ -312,6 +312,7 @@ class TestAlignmentResult:
             backbone_protein_rmsd=1.1,
             backbone_dna_rmsd=1.5,
             fnat=0.65,
+            dockq=0.70,
             rotation_matrix=np.eye(3),
             translation_vector=np.zeros(3),
             orientation_error=15.0,

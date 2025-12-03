@@ -1,0 +1,4 @@
+# file: /var/home/delta/dev/delta/BioStructBenchmark/biostructbenchmark/cli.py
+# hypothesis_version: 6.148.2
+
+['--output-dir', '--save-structures', '--version', '-o', '-v', '0.0.1', 'BioStructBenchmark', 'File is empty', 'No read permission', 'Not a valid file', 'Path does not exist', 'file_path_observed', 'file_path_predicted', 'store_true', 'version']

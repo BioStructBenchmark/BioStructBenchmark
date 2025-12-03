@@ -250,3 +250,67 @@ def calculate_ligand_rmsd(
     )
 
     return l_rmsd
+
+
+def calculate_dockq(
+    i_rmsd: float,
+    l_rmsd: float,
+    fnat: float
+) -> float:
+    """
+    Calculate DockQ score - combined CAPRI quality metric.
+
+    DockQ integrates i-RMSD, l-RMSD, and fnat into a single normalized score
+    between 0 and 1, providing an overall quality assessment of the prediction.
+
+    Args:
+        i_rmsd: Interface backbone RMSD in Angstroms
+        l_rmsd: Ligand backbone RMSD in Angstroms
+        fnat: Fraction of native contacts (0.0-1.0)
+
+    Returns:
+        DockQ score (0.0-1.0)
+
+    Note:
+        DockQ quality thresholds:
+        - Incorrect: DockQ < 0.23
+        - Acceptable: 0.23 ≤ DockQ < 0.49
+        - Medium: 0.49 ≤ DockQ < 0.80
+        - High/Very High: DockQ ≥ 0.80
+
+    Formula (Basu & Wallner, 2016):
+        DockQ = (fnat + 1/(1 + (i_rmsd/1.5)²) + 1/(1 + (l_rmsd/8.5)²)) / 3
+
+    The formula normalizes and combines the three metrics:
+    - fnat: Already normalized [0, 1]
+    - i_rmsd term: Normalized with characteristic scale 1.5 Å
+    - l_rmsd term: Normalized with characteristic scale 8.5 Å
+
+    Reference:
+        Basu & Wallner (2016) "DockQ: A Quality Measure for Protein-Protein
+        Docking Models" PLOS ONE 11(8): e0161879
+
+    Example:
+        If i_rmsd=2.0 Å, l_rmsd=5.0 Å, fnat=0.60:
+        - fnat_term = 0.60
+        - i_rmsd_term = 1/(1 + (2.0/1.5)²) = 1/(1 + 1.78) = 0.36
+        - l_rmsd_term = 1/(1 + (5.0/8.5)²) = 1/(1 + 0.35) = 0.74
+        - DockQ = (0.60 + 0.36 + 0.74) / 3 = 0.57 (Medium quality)
+    """
+    # Handle infinite RMSD values
+    if i_rmsd == float('inf') or l_rmsd == float('inf'):
+        return 0.0
+
+    # Normalized fnat term (already [0, 1])
+    fnat_term = fnat
+
+    # Normalized i-RMSD term with characteristic scale 1.5 Å
+    i_rmsd_term = 1.0 / (1.0 + (i_rmsd / 1.5) ** 2)
+
+    # Normalized l-RMSD term with characteristic scale 8.5 Å
+    l_rmsd_term = 1.0 / (1.0 + (l_rmsd / 8.5) ** 2)
+
+    # Average of three normalized terms
+    dockq = (fnat_term + i_rmsd_term + l_rmsd_term) / 3.0
+
+    return dockq
