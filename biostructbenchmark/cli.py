@@ -66,5 +66,17 @@ def arg_parser() -> argparse.Namespace:
         help="Save aligned structures to output files",
     )
 
+    # Analysis options
+    parser.add_argument(
+        "-b", "--analyze-bfactor",
+        action="store_true",
+        help="Perform B-factor/pLDDT confidence analysis",
+    )
+    parser.add_argument(
+        "--bfactor-output",
+        type=str,
+        help="Output path for B-factor CSV (default: <output_dir>/analysis/bfactor_comparison.csv)",
+    )
+
     # Parse the command line arguments
     return parser.parse_args()

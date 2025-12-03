@@ -55,6 +55,46 @@ def main() -> None:
         print(f"Experimental structure: {exp_path}")
         print(f"Aligned computational structure: {comp_path}")
 
+    # Perform B-factor analysis if requested
+    if args.analyze_bfactor:
+        from biostructbenchmark.analysis.bfactor import BFactorAnalyzer
+        from pathlib import Path
+
+        print("\nPerforming B-factor/pLDDT analysis...")
+        analyzer = BFactorAnalyzer()
+
+        try:
+            comparisons, stats = analyzer.analyze_structures(
+                experimental_structure,
+                computational_structure
+            )
+
+            print("\n=== B-FACTOR ANALYSIS ===")
+            print(f"Mean Experimental B-factor: {stats.mean_experimental:.2f}")
+            print(f"Mean Predicted Confidence (pLDDT): {stats.mean_predicted:.2f}")
+            print(f"Correlation: {stats.correlation:.3f}")
+            print(f"RMSD: {stats.rmsd:.2f}")
+            print(f"High Confidence Accuracy (pLDDT>70): {stats.high_confidence_accuracy:.2f}")
+            print(f"Low Confidence Accuracy (pLDDT≤70): {stats.low_confidence_accuracy:.2f}")
+            print(f"Total Residues Analyzed: {len(comparisons)}")
+
+            # Determine output path
+            if args.bfactor_output:
+                csv_path = Path(args.bfactor_output)
+            elif args.output_dir:
+                csv_path = Path(args.output_dir) / "analysis" / "bfactor_comparison.csv"
+            else:
+                csv_path = Path("./analysis/bfactor_comparison.csv")
+
+            # Save CSV
+            analyzer.save_to_csv(comparisons, csv_path)
+            print(f"\nB-factor comparison saved to: {csv_path}")
+
+        except ValueError as e:
+            print(f"\nB-factor analysis failed: {e}")
+        except Exception as e:
+            print(f"\nUnexpected error during B-factor analysis: {e}")
+
 
 if __name__ == "__main__":
     main()
