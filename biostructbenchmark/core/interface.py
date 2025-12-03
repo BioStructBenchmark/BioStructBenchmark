@@ -1,13 +1,21 @@
 """
-Protein-DNA interface detection and analysis
+Protein-nucleic acid interface detection and analysis
+
+Supports CAPRI-compliant interface detection for protein-DNA/RNA complexes.
 """
 
 from Bio.PDB.Polypeptide import is_aa
 from Bio.PDB import Structure
 from .sequences import DNA_NUCLEOTIDE_MAP
 
-# Distance threshold for protein-DNA interface detection (Angstroms)
-INTERFACE_DISTANCE_THRESHOLD = 5.0
+# CAPRI standard: Interface residues with any heavy atoms within 10 Å of binding partner
+CAPRI_INTERFACE_THRESHOLD = 10.0
+
+# Tight interface definition: Higher specificity for core binding residues
+TIGHT_INTERFACE_THRESHOLD = 5.0
+
+# Default threshold (CAPRI standard for compatibility with published results)
+INTERFACE_DISTANCE_THRESHOLD = CAPRI_INTERFACE_THRESHOLD
 
 
 def find_interface_residues(
@@ -17,16 +25,24 @@ def find_interface_residues(
     threshold: float = INTERFACE_DISTANCE_THRESHOLD,
 ) -> dict[str, list[str]]:
     """
-    Find residues at the protein-DNA interface.
-    
+    Find residues at the protein-nucleic acid interface.
+
+    Uses CAPRI standard definition: residues with any heavy atoms within the
+    specified threshold distance of the binding partner.
+
     Args:
         structure: BioPython structure
         protein_chains: List of protein chain IDs
-        dna_chains: List of DNA chain IDs
-        threshold: Distance threshold in Angstroms
-    
+        dna_chains: List of DNA/RNA chain IDs
+        threshold: Distance threshold in Angstroms (default: 10.0 Å CAPRI standard)
+                  Use TIGHT_INTERFACE_THRESHOLD (5.0 Å) for core binding residues
+
     Returns:
         Dict mapping chain_id to list of interface residue IDs
+
+    Note:
+        CAPRI standard uses 10 Å for interface definition. The previous default
+        of 5 Å identifies only core binding residues and undercounts interfaces.
     """
     interface_residues: dict[str, list[str]] = {}
     
