@@ -27,9 +27,11 @@ def main() -> None:
     print(f"i-RMSD (Interface Backbone): {alignment_result.capri_i_rmsd:.3f} Å")
     print(f"l-RMSD (Ligand Backbone):    {alignment_result.capri_l_rmsd:.3f} Å")
     print(f"Backbone RMSD (Overall):     {alignment_result.backbone_rmsd:.3f} Å")
+    print(f"fnat (Native Contacts):      {alignment_result.fnat:.3f} ({alignment_result.fnat*100:.1f}%)")
 
-    # CAPRI quality interpretation
+    # CAPRI quality interpretation (based on combined metrics)
     if alignment_result.capri_i_rmsd < float('inf'):
+        # Primary classification based on i-RMSD
         if alignment_result.capri_i_rmsd < 1.0:
             quality = "Very High Quality"
         elif alignment_result.capri_i_rmsd < 2.0:
@@ -40,6 +42,13 @@ def main() -> None:
             quality = "Acceptable"
         else:
             quality = "Incorrect"
+
+        # Refine based on fnat if needed
+        if alignment_result.fnat < 0.10:
+            quality = "Incorrect (low fnat)"
+        elif alignment_result.fnat >= 0.70 and alignment_result.capri_i_rmsd < 2.0:
+            quality = "Very High Quality"
+
         print(f"CAPRI Classification: {quality}")
 
     print("\n=== ALL-ATOM METRICS (Detailed) ===")

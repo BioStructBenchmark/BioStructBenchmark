@@ -102,6 +102,7 @@ class TestCLIIntegration:
         mock_result.backbone_rmsd = 0.9
         mock_result.backbone_protein_rmsd = 0.85
         mock_result.backbone_dna_rmsd = 1.1
+        mock_result.fnat = 0.65
         mock_result.orientation_error = 0.0
         mock_result.translational_error = 0.0
         mock_result.protein_chains = ["A"]

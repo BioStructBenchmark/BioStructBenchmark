@@ -32,7 +32,11 @@ from .sequences import (
     DNA_NUCLEOTIDE_MAP,
     ChainMatch,
 )
-from .interface import find_interface_residues, INTERFACE_DISTANCE_THRESHOLD
+from .interface import (
+    find_interface_residues,
+    calculate_fnat,
+    INTERFACE_DISTANCE_THRESHOLD,
+)
 
 def create_output_directory_structure(base_output_dir: Path | None = None) -> Path:
     """
@@ -142,6 +146,7 @@ class AlignmentResult:
     backbone_rmsd: float  # Overall backbone RMSD
     backbone_protein_rmsd: float  # Protein backbone RMSD (Cα atoms)
     backbone_dna_rmsd: float  # DNA/RNA backbone RMSD (P atoms)
+    fnat: float  # Fraction of native contacts (0.0-1.0)
 
     # Transformation matrices
     rotation_matrix: np.ndarray  # From full structure superimposition
@@ -433,6 +438,7 @@ def align_protein_dna_complex(
             backbone_rmsd=float("inf"),
             backbone_protein_rmsd=float("inf"),
             backbone_dna_rmsd=float("inf"),
+            fnat=0.0,
             rotation_matrix=np.eye(3),
             translation_vector=np.zeros(3),
             orientation_error=0.0,
@@ -513,6 +519,7 @@ def align_protein_dna_complex(
             backbone_rmsd=float("inf"),
             backbone_protein_rmsd=float("inf"),
             backbone_dna_rmsd=float("inf"),
+            fnat=0.0,
             rotation_matrix=np.eye(3),
             translation_vector=np.zeros(3),
             orientation_error=0.0,
@@ -700,6 +707,18 @@ def align_protein_dna_complex(
     else:
         capri_l_rmsd = float("inf")
 
+    # ===================================================================
+    # CAPRI fnat: Fraction of Native Contacts
+    # ===================================================================
+
+    fnat = calculate_fnat(
+        experimental_structure,
+        computational_structure,
+        exp_prot_chains,
+        exp_dna_chains,
+        sequence_mapping
+    )
+
     # Calculate orientation and translational errors
     orientation_error = calculate_orientation_error(rotation_matrix)
     translational_error = np.linalg.norm(translation_vector)
@@ -731,6 +750,7 @@ def align_protein_dna_complex(
         backbone_rmsd=backbone_rmsd,
         backbone_protein_rmsd=backbone_protein_rmsd,
         backbone_dna_rmsd=backbone_dna_rmsd,
+        fnat=fnat,
         # Transformation matrices
         rotation_matrix=rotation_matrix,
         translation_vector=translation_vector,
