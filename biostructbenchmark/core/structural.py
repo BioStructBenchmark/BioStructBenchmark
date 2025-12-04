@@ -2,12 +2,15 @@
 Structural alignment and RMSD calculations
 """
 
+from typing import Any
+
 import numpy as np
 from Bio.SVDSuperimposer import SVDSuperimposer
-from Bio.PDB import Structure
 
 
-def superimpose_structures(exp_coords: np.ndarray, comp_coords: np.ndarray) -> tuple:
+def superimpose_structures(
+    exp_coords: np.ndarray, comp_coords: np.ndarray
+) -> tuple[Any, np.ndarray, np.ndarray]:
     """
     Perform structural superimposition using SVD.
 
@@ -30,11 +33,11 @@ def superimpose_structures(exp_coords: np.ndarray, comp_coords: np.ndarray) -> t
 
 
 def calculate_per_residue_rmsd(
-    exp_atoms: dict[str, list],
-    comp_atoms: dict[str, list],
+    exp_atoms: dict[str, list[Any]],
+    comp_atoms: dict[str, list[Any]],
     mapping: dict[str, str],
     rotation_matrix: np.ndarray | None = None,
-    translation_vector: np.ndarray | None = None
+    translation_vector: np.ndarray | None = None,
 ) -> dict[str, float]:
     """
     Calculate per-residue RMSD for aligned residues.
@@ -60,10 +63,12 @@ def calculate_per_residue_rmsd(
             if exp_coords.shape == comp_coords.shape:
                 # Apply transformation to computational coordinates if provided
                 if rotation_matrix is not None and translation_vector is not None:
-                    comp_coords_transformed = np.dot(comp_coords, rotation_matrix) + translation_vector
+                    comp_coords_transformed = (
+                        np.dot(comp_coords, rotation_matrix) + translation_vector
+                    )
                 else:
                     comp_coords_transformed = comp_coords
-                
+
                 # Calculate RMSD: sqrt(mean(squared_distances))
                 squared_diffs = np.sum((exp_coords - comp_coords_transformed) ** 2, axis=1)
                 rmsd = np.sqrt(np.mean(squared_diffs))
@@ -89,4 +94,4 @@ def calculate_orientation_error(rotation_matrix: np.ndarray) -> float:
     # Clamp to valid range to avoid numerical errors
     cos_theta = np.clip(cos_theta, -1, 1)
     angle_rad = np.arccos(cos_theta)
-    return np.degrees(angle_rad)
+    return float(np.degrees(angle_rad))

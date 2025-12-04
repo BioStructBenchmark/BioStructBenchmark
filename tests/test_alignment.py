@@ -2,28 +2,22 @@
 Tests for protein-DNA complex alignment functionality
 """
 
-import pytest
-import numpy as np
 from unittest.mock import Mock, patch
-from Bio.PDB import Structure, Model, Chain, Residue, Atom
 
-from biostructbenchmark.core.alignment import align_protein_dna_complex, AlignmentResult
+import numpy as np
+from biostructbenchmark.core.alignment import AlignmentResult, align_protein_dna_complex
+from biostructbenchmark.core.interface import find_interface_residues
 from biostructbenchmark.core.sequences import (
-    classify_chains,
-    match_chains_by_similarity,
-    align_specific_protein_chains,
-    align_specific_dna_chains,
-    get_protein_sequence,
-    get_dna_sequence,
     calculate_sequence_identity,
-    ChainMatch,
-    DNA_NUCLEOTIDE_MAP,
+    classify_chains,
+    get_dna_sequence,
+    get_protein_sequence,
+    match_chains_by_similarity,
 )
 from biostructbenchmark.core.structural import (
-    calculate_per_residue_rmsd,
     calculate_orientation_error,
+    calculate_per_residue_rmsd,
 )
-from biostructbenchmark.core.interface import find_interface_residues
 
 
 class TestChainClassification:
@@ -151,9 +145,7 @@ class TestSequenceIdentity:
         seq1 = "ATGC"
         seq2 = "ATCC"
         identity = calculate_sequence_identity(seq1, seq2)
-        assert (
-            0.5 < identity <= 0.8
-        )  # Expected around 3/4 matches but depends on alignment
+        assert 0.5 < identity <= 0.8  # Expected around 3/4 matches but depends on alignment
 
     def test_empty_sequences(self):
         """Test identity calculation for empty sequences."""
@@ -259,20 +251,11 @@ class TestChainMatching:
         comp_structure = Mock()
 
         with (
-            patch(
-                "biostructbenchmark.core.sequences.classify_chains"
-            ) as mock_classify,
-            patch(
-                "biostructbenchmark.core.sequences.get_protein_sequence"
-            ) as mock_prot_seq,
-            patch(
-                "biostructbenchmark.core.sequences.get_dna_sequence"
-            ) as mock_dna_seq,
-            patch(
-                "biostructbenchmark.core.sequences.calculate_sequence_identity"
-            ) as mock_identity,
+            patch("biostructbenchmark.core.sequences.classify_chains") as mock_classify,
+            patch("biostructbenchmark.core.sequences.get_protein_sequence") as mock_prot_seq,
+            patch("biostructbenchmark.core.sequences.get_dna_sequence") as mock_dna_seq,
+            patch("biostructbenchmark.core.sequences.calculate_sequence_identity") as mock_identity,
         ):
-
             # Mock chain classification
             mock_classify.side_effect = [(["A"], ["B"]), (["C"], ["D"])]
 
@@ -330,14 +313,9 @@ class TestMainAlignmentFunction:
         comp_structure = Mock()
 
         with (
-            patch(
-                "biostructbenchmark.core.alignment.classify_chains"
-            ) as mock_classify,
-            patch(
-                "biostructbenchmark.core.alignment.match_chains_by_similarity"
-            ) as mock_match,
+            patch("biostructbenchmark.core.alignment.classify_chains") as mock_classify,
+            patch("biostructbenchmark.core.alignment.match_chains_by_similarity") as mock_match,
         ):
-
             # Mock chain classification
             mock_classify.side_effect = [(["A"], ["B"]), (["C"], ["D"])]
             mock_match.return_value = []  # No matches

@@ -36,23 +36,179 @@ exclude = ["tests*", "output_test*", "*output*"]
 
 [dependency-groups]
 test = [
-    "pytest==9.0.1"
-    ]
+    "pytest>=8.3.0",
+    "pytest-cov>=6.0.0",
+]
 lint = [
-    "black==25.11.0",
-    "pylint==4.0.3"
-    ]
+    "ruff>=0.8.0",
+    "mypy>=1.13.0",
+]
+security = [
+    "bandit>=1.8.0",
+    "pip-audit>=2.7.0",
+]
+quality = [
+    "interrogate>=1.7.0",
+    "vulture>=2.14",
+]
 dev = [
     {include-group = "test"},
     {include-group = "lint"},
-    "twine==6.1.0"    
+    {include-group = "security"},
+    {include-group = "quality"},
+    "pre-commit>=4.0.0",
+    "twine>=6.1.0",
 ]
 
 [tool.pytest.ini_options]
-minversion = "6.0"
-addopts = "-ra -q"
+minversion = "8.0"
+addopts = [
+    "-ra",
+    "-q",
+    "--strict-markers",
+    "--cov=biostructbenchmark",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-fail-under=80",
+]
 pythonpath = "."
-testpaths = "tests"
+testpaths = ["tests"]
 markers = [
     "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
+    "slow: marks tests as slow",
 ]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+src = ["biostructbenchmark", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",      # pycodestyle errors/warnings
+    "F",           # pyflakes
+    "I",           # isort
+    "UP",          # pyupgrade
+    "B",           # flake8-bugbear
+    "C4",          # flake8-comprehensions
+    "SIM",         # flake8-simplify
+    "RUF",         # ruff-specific
+    "N",           # pep8-naming
+    "PTH",         # flake8-use-pathlib
+    "S",           # flake8-bandit (security)
+    "C90",         # mccabe complexity
+    "PL",          # pylint
+    "PT",          # flake8-pytest-style
+    "TRY",         # tryceratops (exception handling)
+    "PERF",        # perflint
+    "D",           # pydocstyle (docstring conventions)
+    "TCH",         # flake8-type-checking
+    "T10",         # flake8-debugger (no debugger statements)
+    "T20",         # flake8-print (no print in production)
+    "ERA",         # eradicate (commented-out code)
+    "FLY",         # flynt (f-string conversion)
+    "FURB",        # refurb (modernization)
+    "LOG",         # flake8-logging
+    "G",           # flake8-logging-format
+    "RET",         # flake8-return
+    "RSE",         # flake8-raise
+    "PIE",         # flake8-pie (miscellaneous)
+    "INP",         # flake8-no-pep420 (implicit namespace packages)
+]
+ignore = [
+    "E501",        # line too long (formatter handles)
+    # Docstring rules - use Google convention
+    "D100",        # missing docstring in public module
+    "D104",        # missing docstring in public package
+    "D107",        # missing docstring in __init__
+    "D200",        # one-line docstring should fit on one line (overly strict)
+    "D203",        # one-blank-line-before-class (conflicts with D211)
+    "D205",        # blank line required between summary and description
+    "D212",        # multi-line docstring summary should start at first line (Google uses D213)
+    "D415",        # first line should end with punctuation (overly strict)
+    # Exception handling - acceptable patterns
+    "TRY003",      # long exception messages are acceptable
+    "TRY203",      # re-raise without changes - acceptable for clean exception handling
+    "TRY300",      # return in try block - acceptable pattern
+    # Complexity - scientific code is inherently complex
+    "PLR0913",     # too many arguments - scientific code often has many params
+    "PLR2004",     # magic values - acceptable in scientific/numerical code
+    "PLR0912",     # too many branches - complex algorithms are acceptable
+    "PLR0915",     # too many statements - complex functions are acceptable
+    "C901",        # too complex - scientific algorithms can be complex
+    # Style preferences
+    "PLC0206",     # dict iteration without .items() - acceptable for key-only iteration
+    "SIM108",      # ternary operator - explicit if-else can be clearer
+    "RUF059",      # unused unpacked variable - acceptable for destructuring
+    "PERF401",     # list comprehension vs append - readability preference
+    "B905",        # zip without strict - acceptable for same-length sequences
+    "RET504",      # unnecessary assignment before return - readability preference
+    "G004",        # logging f-string - acceptable for simple logging
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "PLR2004", "ARG001", "PLC0415", "E712", "PT009", "PT027", "RUF015", "PTH123", "B007", "RUF059", "RUF005", "S108", "PT011", "D", "T20", "INP001"]
+"biostructbenchmark/__main__.py" = ["PLC0415", "PLR0915", "T20"]  # CLI entry point has conditional imports and prints
+
+[tool.ruff.format]
+quote-style = "double"
+docstring-code-format = true
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+extra_checks = true
+warn_return_any = true
+warn_unused_ignores = true
+show_error_codes = true
+show_column_numbers = true
+pretty = true
+# Allow untyped calls for scientific libraries without type stubs
+disallow_untyped_calls = false
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+
+[[tool.mypy.overrides]]
+module = ["Bio.*", "numpy.*", "pandas.*"]
+ignore_missing_imports = true
+# BioPython has incomplete type stubs - allow broader typing
+follow_imports = "skip"
+
+[tool.coverage.run]
+branch = true
+source = ["biostructbenchmark"]
+omit = ["tests/*"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]
+
+[tool.bandit]
+targets = ["biostructbenchmark"]
+exclude_dirs = ["tests"]
+
+[tool.interrogate]
+fail-under = 80
+verbose = 2
+ignore-init-method = true
+ignore-init-module = true
+ignore-magic = true
+ignore-private = true
+ignore-semiprivate = false
+exclude = ["tests", "docs", "build", "dist"]
+color = true
+
+[tool.vulture]
+min_confidence = 80
+paths = ["biostructbenchmark"]
+exclude = ["tests/", ".venv/"]

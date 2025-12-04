@@ -2,8 +2,8 @@
 
 """Entry point for biostructbenchmark"""
 
-from biostructbenchmark.core.alignment import align_protein_dna_complex
 from biostructbenchmark.cli import arg_parser
+from biostructbenchmark.core.alignment import align_protein_dna_complex
 from biostructbenchmark.core.io import get_structure
 
 
@@ -17,10 +17,10 @@ def main() -> None:
 
     print("Performing protein-DNA complex alignment...")
     alignment_result = align_protein_dna_complex(
-        experimental_structure, 
+        experimental_structure,
         computational_structure,
         output_dir=args.output_dir,
-        save_structures=args.save_structures
+        save_structures=args.save_structures,
     )
 
     print("\n=== ALIGNMENT RESULTS ===")
@@ -41,32 +41,32 @@ def main() -> None:
         )
         print(f"Interface Residues: {total_interface}")
 
-    print(f"\nPer-residue RMSD statistics:")
+    print("\nPer-residue RMSD statistics:")
     if alignment_result.per_residue_rmsd:
         rmsds = list(alignment_result.per_residue_rmsd.values())
         print(f"  Min: {min(rmsds):.3f} Å")
         print(f"  Max: {max(rmsds):.3f} Å")
-        print(f"  Mean: {sum(rmsds)/len(rmsds):.3f} Å")
+        print(f"  Mean: {sum(rmsds) / len(rmsds):.3f} Å")
 
     # Display output file information if structures were saved
     if alignment_result.output_files:
         exp_path, comp_path = alignment_result.output_files
-        print(f"\n=== OUTPUT FILES ===")
+        print("\n=== OUTPUT FILES ===")
         print(f"Experimental structure: {exp_path}")
         print(f"Aligned computational structure: {comp_path}")
 
     # Perform B-factor analysis if requested
     if args.analyze_bfactor:
-        from biostructbenchmark.analysis.bfactor import BFactorAnalyzer
         from pathlib import Path
+
+        from biostructbenchmark.analysis.bfactor import BFactorAnalyzer
 
         print("\nPerforming B-factor/pLDDT analysis...")
         analyzer = BFactorAnalyzer()
 
         try:
             comparisons, stats = analyzer.analyze_structures(
-                experimental_structure,
-                computational_structure
+                experimental_structure, computational_structure
             )
 
             print("\n=== B-FACTOR ANALYSIS ===")

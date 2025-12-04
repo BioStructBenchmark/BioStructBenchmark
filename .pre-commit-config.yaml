@@ -1,0 +1,44 @@
+repos:
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-ast
+      - id: detect-private-key
+      - id: debug-statements
+      - id: check-merge-conflict
+
+  # Ruff linting and formatting
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  # Type checking
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.13.0
+    hooks:
+      - id: mypy
+        args: [--strict, --show-error-codes]
+        additional_dependencies: [types-all]
+        exclude: ^tests/
+
+  # Security scanning
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.8.0
+    hooks:
+      - id: bandit
+        args: [-c, pyproject.toml]
+        exclude: ^tests/
+
+  # GitHub Actions security scanning
+  - repo: https://github.com/woodruffw/zizmor-pre-commit
+    rev: v1.0.0
+    hooks:
+      - id: zizmor

@@ -1,5 +1,5 @@
-import pytest
 from pathlib import Path
+
 from biostructbenchmark.core.io import validate_file
 
 
