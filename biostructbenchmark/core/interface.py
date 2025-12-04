@@ -2,9 +2,14 @@
 Protein-DNA interface detection and analysis using GEMMI's spatial indexing.
 """
 
+import logging
+import time
+
 import gemmi
 
 from .sequences import AMINO_ACIDS, DNA_NUCLEOTIDE_MAP
+
+logger = logging.getLogger(__name__)
 
 # Distance threshold for protein-DNA interface detection (Angstroms)
 INTERFACE_DISTANCE_THRESHOLD = 5.0
@@ -37,6 +42,12 @@ def find_interface_residues(
     Returns:
         Dict mapping chain_id to list of interface residue IDs
     """
+    start_time = time.perf_counter()
+    logger.debug(
+        "Finding interface residues: protein chains %s, DNA chains %s, threshold %.1f Å",
+        protein_chains, dna_chains, threshold
+    )
+
     interface_residues: dict[str, list[str]] = {}
     protein_chain_set = set(protein_chains)
     dna_chain_set = set(dna_chains)
@@ -48,7 +59,10 @@ def find_interface_residues(
 
         # Build spatial index without periodic boundary conditions
         # Using an empty UnitCell disables PBC (we want real distances, not crystal contacts)
+        index_start = time.perf_counter()
         ns = gemmi.NeighborSearch(model, gemmi.UnitCell(), threshold).populate()
+        index_time = (time.perf_counter() - index_start) * 1000
+        logger.debug("Built NeighborSearch spatial index in %.2f ms", index_time)
 
         # Track which residues we've already added (use set for O(1) lookup)
         seen_residues: set[str] = set()
@@ -89,4 +103,10 @@ def find_interface_residues(
                             seen_residues.add(dna_res_id)
                             interface_residues[chain.name].append(dna_res_id)
 
+    total_interface = sum(len(v) for v in interface_residues.values())
+    elapsed = (time.perf_counter() - start_time) * 1000
+    logger.debug(
+        "Interface detection complete: %d residues found in %.2f ms",
+        total_interface, elapsed
+    )
     return interface_residues

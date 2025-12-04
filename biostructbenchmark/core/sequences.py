@@ -2,10 +2,14 @@
 Sequence alignment and chain matching functionality using SIMD-accelerated Parasail.
 """
 
+import logging
+import time
 from dataclasses import dataclass
 
 import gemmi
 import parasail
+
+logger = logging.getLogger(__name__)
 
 # Define DNA nucleotide mapping
 DNA_NUCLEOTIDE_MAP = {
@@ -70,6 +74,7 @@ def classify_chains(structure: gemmi.Structure) -> tuple[list[str], list[str]]:
     Returns:
         tuple: (protein_chain_ids, dna_chain_ids)
     """
+    start_time = time.perf_counter()
     protein_chains = []
     dna_chains = []
 
@@ -88,9 +93,22 @@ def classify_chains(structure: gemmi.Structure) -> tuple[list[str], list[str]]:
             # Classify based on predominant residue type
             if protein_residues > dna_residues:
                 protein_chains.append(chain_id)
+                logger.debug(
+                    "Chain %s classified as protein (%d protein, %d DNA residues)",
+                    chain_id, protein_residues, dna_residues
+                )
             elif dna_residues > 0:
                 dna_chains.append(chain_id)
+                logger.debug(
+                    "Chain %s classified as DNA (%d protein, %d DNA residues)",
+                    chain_id, protein_residues, dna_residues
+                )
 
+    elapsed = (time.perf_counter() - start_time) * 1000
+    logger.debug(
+        "Chain classification: %d protein chains %s, %d DNA chains %s in %.2f ms",
+        len(protein_chains), protein_chains, len(dna_chains), dna_chains, elapsed
+    )
     return protein_chains, dna_chains
 
 
@@ -144,6 +162,9 @@ def match_chains_by_similarity(
     Returns:
         List of ChainMatch objects representing best chain pairings
     """
+    start_time = time.perf_counter()
+    logger.debug("Matching chains between structures by sequence similarity")
+
     # Extract chains and classify them
     exp_prot_chains, exp_dna_chains = classify_chains(exp_structure)
     comp_prot_chains, comp_dna_chains = classify_chains(comp_structure)
@@ -164,6 +185,10 @@ def match_chains_by_similarity(
             comp_seq = get_protein_sequence(comp_structure, comp_chain_id)
             if exp_seq and comp_seq:
                 identity = calculate_sequence_identity(exp_seq, comp_seq)
+                logger.debug(
+                    "Protein chain similarity: exp %s vs comp %s = %.1f%%",
+                    exp_chain_id, comp_chain_id, identity * 100
+                )
                 if identity > best_identity and identity > 0.3:  # Minimum 30% identity
                     best_match = comp_chain_id
                     best_identity = identity
@@ -179,6 +204,10 @@ def match_chains_by_similarity(
                     rmsd=0.0,  # Will be calculated later
                 )
             )
+            logger.debug(
+                "Matched protein chain %s -> %s (%.1f%% identity)",
+                exp_chain_id, best_match, best_identity * 100
+            )
 
     # Match DNA chains
     for exp_chain_id in exp_dna_chains:
@@ -193,6 +222,10 @@ def match_chains_by_similarity(
             comp_seq = get_dna_sequence(comp_structure, comp_chain_id)
             if exp_seq and comp_seq:
                 identity = calculate_sequence_identity(exp_seq, comp_seq)
+                logger.debug(
+                    "DNA chain similarity: exp %s vs comp %s = %.1f%%",
+                    exp_chain_id, comp_chain_id, identity * 100
+                )
                 if identity > best_identity and identity > 0.5:  # Higher threshold for DNA
                     best_match = comp_chain_id
                     best_identity = identity
@@ -208,7 +241,16 @@ def match_chains_by_similarity(
                     rmsd=0.0,  # Will be calculated later
                 )
             )
+            logger.debug(
+                "Matched DNA chain %s -> %s (%.1f%% identity)",
+                exp_chain_id, best_match, best_identity * 100
+            )
 
+    elapsed = (time.perf_counter() - start_time) * 1000
+    logger.debug(
+        "Chain matching complete: %d matches in %.2f ms",
+        len(chain_matches), elapsed
+    )
     return chain_matches
 
 

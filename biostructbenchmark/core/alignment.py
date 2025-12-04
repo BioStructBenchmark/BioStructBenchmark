@@ -3,6 +3,8 @@ Streamlined protein-DNA complex alignment module
 """
 
 import copy
+import logging
+import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -11,6 +13,8 @@ from typing import Any
 import gemmi
 import numpy as np
 import parasail
+
+logger = logging.getLogger(__name__)
 
 from .interface import INTERFACE_DISTANCE_THRESHOLD, find_interface_residues
 from .sequences import (
@@ -338,9 +342,14 @@ def align_protein_dna_complex(
 
     TODO: Implement summary.json generation with run metadata
     """
+    total_start = time.perf_counter()
+    logger.debug("Starting protein-DNA complex alignment")
+
     # Classify chains and find best matches between structures
+    classify_start = time.perf_counter()
     exp_prot_chains, exp_dna_chains = classify_chains(experimental_structure)
     comp_prot_chains, comp_dna_chains = classify_chains(computational_structure)
+    logger.debug("Chain classification took %.2f ms", (time.perf_counter() - classify_start) * 1000)
 
     # Match chains based on sequence similarity
     chain_matches = match_chains_by_similarity(experimental_structure, computational_structure)
@@ -522,6 +531,13 @@ def align_protein_dna_complex(
             translation_vector,
             run_dir,
         )
+
+    total_elapsed = (time.perf_counter() - total_start) * 1000
+    logger.debug(
+        "Alignment complete in %.2f ms: RMSD=%.3f Å, %d residues mapped, %d interface residues",
+        total_elapsed, structural_rmsd, len(sequence_mapping),
+        sum(len(v) for v in interface_residues.values())
+    )
 
     return AlignmentResult(
         sequence_mapping=sequence_mapping,

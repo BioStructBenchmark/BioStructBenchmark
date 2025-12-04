@@ -1,9 +1,33 @@
 """CLI scripts called from __main__.py"""
 
 import argparse
+import logging
 import os
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
+
+
+def setup_logging(verbose: int = 0) -> None:
+    """Configure logging based on verbosity level.
+
+    Args:
+        verbose: Verbosity level (0=WARNING, 1=INFO, 2=DEBUG)
+    """
+    if verbose == 0:
+        level = logging.WARNING
+    elif verbose == 1:
+        level = logging.INFO
+    else:  # verbose >= 2
+        level = logging.DEBUG
+
+    # Configure root logger for biostructbenchmark
+    logging.basicConfig(
+        level=level,
+        format="%(asctime)s.%(msecs)03d %(levelname)s %(name)s: %(message)s",
+        datefmt="%H:%M:%S",
+    )
+    # Set level specifically for our package
+    logging.getLogger("biostructbenchmark").setLevel(level)
 
 
 def validate_file_path(input_path: str) -> Path:
@@ -35,11 +59,20 @@ def arg_parser() -> argparse.Namespace:
 
     # Version argument
     parser.add_argument(
-        "-v",
+        "-V",
         "--version",
         action="version",
         version=get_version(),
         help="View BioStructBenchmark version number",
+    )
+
+    # Verbosity argument
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="count",
+        default=0,
+        help="Increase output verbosity (-v for INFO, -vv for DEBUG/trace)",
     )
 
     # File arguments

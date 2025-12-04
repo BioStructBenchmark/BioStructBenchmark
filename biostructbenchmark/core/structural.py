@@ -2,9 +2,13 @@
 Structural alignment and RMSD calculations
 """
 
+import logging
+import time
 from typing import Any
 
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 
 def superimpose_structures(
@@ -22,6 +26,9 @@ def superimpose_structures(
     Returns:
         tuple: (rmsd, rotation_matrix, translation_vector)
     """
+    start_time = time.perf_counter()
+    logger.debug("Superimposing %d atom pairs using Kabsch algorithm", len(exp_coords))
+
     # Center both coordinate sets
     exp_center = exp_coords.mean(axis=0)
     comp_center = comp_coords.mean(axis=0)
@@ -39,6 +46,7 @@ def superimpose_structures(
     if np.linalg.det(R) < 0:
         Vt[-1, :] *= -1
         R = Vt.T @ U.T  # noqa: N806
+        logger.debug("Corrected reflection in rotation matrix")
 
     # Calculate translation
     t = exp_center - R @ comp_center
@@ -46,6 +54,9 @@ def superimpose_structures(
     # Calculate RMSD
     comp_transformed = (R @ comp_coords.T).T + t
     rmsd = float(np.sqrt(((exp_coords - comp_transformed) ** 2).sum() / len(exp_coords)))
+
+    elapsed = (time.perf_counter() - start_time) * 1000
+    logger.debug("Superimposition complete: RMSD=%.3f Å in %.2f ms", rmsd, elapsed)
 
     return rmsd, R, t
 

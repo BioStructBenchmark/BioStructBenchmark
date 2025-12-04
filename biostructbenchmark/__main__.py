@@ -2,7 +2,7 @@
 
 """Entry point for biostructbenchmark"""
 
-from biostructbenchmark.cli import arg_parser
+from biostructbenchmark.cli import arg_parser, setup_logging
 from biostructbenchmark.core.alignment import align_protein_dna_complex
 from biostructbenchmark.core.io import get_structure
 
@@ -10,6 +10,9 @@ from biostructbenchmark.core.io import get_structure
 def main() -> None:
     """Main entry point for structure comparison."""
     args = arg_parser()
+
+    # Setup logging based on verbosity
+    setup_logging(args.verbose)
 
     print("Loading structures...")
     experimental_structure = get_structure(args.file_path_observed)
