@@ -9,6 +9,7 @@ pLDDT (predicted Local Distance Difference Test) represents AlphaFold's
 confidence in its predictions (0-100 scale, stored in B-factor field).
 """
 
+import logging
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -17,6 +18,8 @@ from dataclasses import dataclass
 from Bio.PDB import Structure
 
 from biostructbenchmark.core.io import get_structure
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -121,7 +124,8 @@ class BFactorAnalyzer:
             # At least 50% of atoms should have non-zero B-factors
             # Check bfactor_count > 0 to prevent division by zero
             return bfactor_count > 0 and nonzero_count > 0 and (nonzero_count / bfactor_count) > 0.5
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Failed to validate B-factors: {e}")
             return False
 
     def _extract_bfactors_from_structure(
@@ -182,7 +186,7 @@ class BFactorAnalyzer:
                     bfactors[residue_key] = float(avg_bfactor)
 
         except Exception as e:
-            # Return partial results if error occurs
+            logger.warning(f"Error extracting B-factors (returning {len(bfactors)} partial results): {e}")
             return bfactors
 
         return bfactors
@@ -207,7 +211,7 @@ class BFactorAnalyzer:
         try:
             return self._extract_bfactors_from_structure(structure, filter_heteroatoms=True)
         except Exception as e:
-            print(f"Error extracting B-factors from {structure_path}: {e}")
+            logger.error(f"Error extracting B-factors from {structure_path}: {e}")
             return {}
 
     def analyze_structures(
