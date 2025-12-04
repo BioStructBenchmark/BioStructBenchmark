@@ -55,6 +55,11 @@ residue_id,chain_id,position,experimental_bfactor,predicted_confidence,differenc
 A_1,A,1,25.3,85.2,59.9,-0.5
 ```
 
+**Notes:**
+- Only standard amino acid residues are analyzed; water molecules, ligands, and other heteroatoms are excluded
+- For multi-model structures (e.g., NMR ensembles), only the first model is used
+- Structures must have >50% non-zero B-factors to pass validation
+
 ### Custom Output Location
 
 Specify a custom path for the B-factor CSV:
