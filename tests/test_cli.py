@@ -97,6 +97,13 @@ class TestCLIIntegration:
         mock_result.protein_rmsd = 1.0
         mock_result.dna_rmsd = 1.0
         mock_result.interface_rmsd = 1.0
+        mock_result.capri_i_rmsd = 0.8
+        mock_result.capri_l_rmsd = 1.2
+        mock_result.backbone_rmsd = 0.9
+        mock_result.backbone_protein_rmsd = 0.85
+        mock_result.backbone_dna_rmsd = 1.1
+        mock_result.fnat = 0.65
+        mock_result.dockq = 0.72
         mock_result.orientation_error = 0.0
         mock_result.translational_error = 0.0
         mock_result.protein_chains = ["A"]

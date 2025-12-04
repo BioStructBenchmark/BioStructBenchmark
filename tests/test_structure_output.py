@@ -123,7 +123,7 @@ class TestAlignmentResultWithOutput:
     def test_alignment_result_includes_output_files(self):
         """Test that AlignmentResult can store output file paths"""
         output_files = (Path("exp.cif"), Path("comp.cif"))
-        
+
         result = AlignmentResult(
             sequence_mapping={},
             structural_rmsd=1.0,
@@ -131,6 +131,13 @@ class TestAlignmentResultWithOutput:
             protein_rmsd=1.0,
             dna_rmsd=1.0,
             interface_rmsd=1.0,
+            capri_i_rmsd=1.0,
+            capri_l_rmsd=1.0,
+            backbone_rmsd=1.0,
+            backbone_protein_rmsd=1.0,
+            backbone_dna_rmsd=1.0,
+            fnat=0.5,
+            dockq=0.6,
             rotation_matrix=np.eye(3),
             translation_vector=np.zeros(3),
             orientation_error=0.0,
@@ -152,6 +159,13 @@ class TestAlignmentResultWithOutput:
             protein_rmsd=1.0,
             dna_rmsd=1.0,
             interface_rmsd=1.0,
+            capri_i_rmsd=1.0,
+            capri_l_rmsd=1.0,
+            backbone_rmsd=1.0,
+            backbone_protein_rmsd=1.0,
+            backbone_dna_rmsd=1.0,
+            fnat=0.5,
+            dockq=0.6,
             rotation_matrix=np.eye(3),
             translation_vector=np.zeros(3),
             orientation_error=0.0,

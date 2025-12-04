@@ -17,7 +17,12 @@ from .structural import (
     superimpose_structures,
     calculate_per_residue_rmsd,
     calculate_orientation_error,
+    calculate_interface_rmsd,
+    calculate_ligand_rmsd,
+    calculate_rmsd_from_coords,
+    calculate_dockq,
 )
+from .atoms import get_backbone_atoms, is_protein_residue, is_nucleic_acid_residue
 from .sequences import (
     classify_chains,
     match_chains_by_similarity,
@@ -28,7 +33,11 @@ from .sequences import (
     DNA_NUCLEOTIDE_MAP,
     ChainMatch,
 )
-from .interface import find_interface_residues, INTERFACE_DISTANCE_THRESHOLD
+from .interface import (
+    find_interface_residues,
+    calculate_fnat,
+    INTERFACE_DISTANCE_THRESHOLD,
+)
 
 def create_output_directory_structure(base_output_dir: Path | None = None) -> Path:
     """
@@ -116,22 +125,49 @@ def save_aligned_structures(
 
 @dataclass
 class AlignmentResult:
-    """Result of protein-DNA complex alignment"""
+    """
+    Result of protein-nucleic acid complex alignment.
+
+    Contains both legacy all-atom metrics and CAPRI-compliant backbone metrics
+    for comprehensive structure comparison.
+    """
 
     sequence_mapping: dict[str, str]  # exp_residue_id -> comp_residue_id
-    structural_rmsd: float
-    per_residue_rmsd: dict[str, float]  # residue_id -> RMSD
-    protein_rmsd: float
-    dna_rmsd: float
-    interface_rmsd: float
-    rotation_matrix: np.ndarray
-    translation_vector: np.ndarray
-    orientation_error: float  # degrees
-    translational_error: float  # Angstroms
+
+    # Legacy all-atom metrics (kept for backward compatibility)
+    structural_rmsd: float  # All-atom RMSD after full superimposition
+    per_residue_rmsd: dict[str, float]  # All-atom per-residue RMSD
+    protein_rmsd: float  # Mean all-atom RMSD for protein residues
+    dna_rmsd: float  # Mean all-atom RMSD for DNA/RNA residues
+    interface_rmsd: float  # Mean all-atom RMSD for interface residues
+
+    # CAPRI-compliant backbone metrics (NEW)
+    capri_i_rmsd: float  # Interface backbone RMSD (superimposed on interface)
+    capri_l_rmsd: float  # Ligand backbone RMSD (superimposed on receptor)
+    backbone_rmsd: float  # Overall backbone RMSD
+    backbone_protein_rmsd: float  # Protein backbone RMSD (Cα atoms)
+    backbone_dna_rmsd: float  # DNA/RNA backbone RMSD (P atoms)
+    fnat: float  # Fraction of native contacts (0.0-1.0)
+    dockq: float  # DockQ combined quality score (0.0-1.0)
+
+    # Transformation matrices
+    rotation_matrix: np.ndarray  # From full structure superimposition
+    translation_vector: np.ndarray  # From full structure superimposition
+
+    # Error decomposition
+    orientation_error: float  # Rotation angle in degrees
+    translational_error: float  # Translation magnitude in Angstroms
+
+    # Structure information
     protein_chains: list[str]
     dna_chains: list[str]
     interface_residues: dict[str, list[str]]  # chain_id -> residue_ids
+
+    # Output files
     output_files: tuple[Path, Path] | None = None  # (experimental_path, computational_aligned_path)
+
+    # Metadata
+    atom_selection: str = "all"  # "all" or "backbone"
 
 
 def align_dna_sequences(experimental_structure, computational_structure):
@@ -399,6 +435,13 @@ def align_protein_dna_complex(
             protein_rmsd=float("inf"),
             dna_rmsd=float("inf"),
             interface_rmsd=float("inf"),
+            capri_i_rmsd=float("inf"),
+            capri_l_rmsd=float("inf"),
+            backbone_rmsd=float("inf"),
+            backbone_protein_rmsd=float("inf"),
+            backbone_dna_rmsd=float("inf"),
+            fnat=0.0,
+            dockq=0.0,
             rotation_matrix=np.eye(3),
             translation_vector=np.zeros(3),
             orientation_error=0.0,
@@ -474,6 +517,13 @@ def align_protein_dna_complex(
             protein_rmsd=float("inf"),
             dna_rmsd=float("inf"),
             interface_rmsd=float("inf"),
+            capri_i_rmsd=float("inf"),
+            capri_l_rmsd=float("inf"),
+            backbone_rmsd=float("inf"),
+            backbone_protein_rmsd=float("inf"),
+            backbone_dna_rmsd=float("inf"),
+            fnat=0.0,
+            dockq=0.0,
             rotation_matrix=np.eye(3),
             translation_vector=np.zeros(3),
             orientation_error=0.0,
@@ -525,6 +575,160 @@ def align_protein_dna_complex(
 
     interface_rmsd = np.mean(interface_rmsds) if interface_rmsds else float("inf")
 
+    # ===================================================================
+    # CAPRI-COMPLIANT BACKBONE CALCULATIONS
+    # ===================================================================
+
+    # Extract backbone atoms for CAPRI metrics (Cα for protein, P for DNA/RNA)
+    exp_backbone_coords_all = []
+    comp_backbone_coords_all = []
+    exp_backbone_protein_coords = []
+    comp_backbone_protein_coords = []
+    exp_backbone_dna_coords = []
+    comp_backbone_dna_coords = []
+
+    for exp_residue_id, comp_residue_id in sequence_mapping.items():
+        if exp_residue_id in exp_residues and comp_residue_id in comp_residues:
+            exp_residue = exp_residues[exp_residue_id]
+            comp_residue = comp_residues[comp_residue_id]
+
+            try:
+                # Extract backbone atoms (Cα for protein, P for DNA/RNA)
+                exp_backbone = get_backbone_atoms(exp_residue, mode="representative")
+                comp_backbone = get_backbone_atoms(comp_residue, mode="representative")
+
+                # Only include if both have backbone atoms
+                if exp_backbone and comp_backbone:
+                    exp_coord = exp_backbone[0].get_coord()
+                    comp_coord = comp_backbone[0].get_coord()
+
+                    # Add to overall backbone coordinates
+                    exp_backbone_coords_all.append(exp_coord)
+                    comp_backbone_coords_all.append(comp_coord)
+
+                    # Separate by chain type for component-specific RMSD
+                    chain_id = exp_residue_id.split(':')[0]
+                    if chain_id in exp_prot_chains:
+                        exp_backbone_protein_coords.append(exp_coord)
+                        comp_backbone_protein_coords.append(comp_coord)
+                    elif chain_id in exp_dna_chains:
+                        exp_backbone_dna_coords.append(exp_coord)
+                        comp_backbone_dna_coords.append(comp_coord)
+
+            except ValueError:
+                # Skip residues without backbone atoms (e.g., ligands, modified residues)
+                continue
+
+    # Calculate backbone RMSD if we have backbone atoms
+    if exp_backbone_coords_all and comp_backbone_coords_all:
+        exp_backbone_array = np.array(exp_backbone_coords_all)
+        comp_backbone_array = np.array(comp_backbone_coords_all)
+
+        # Overall backbone RMSD using the same transformation as all-atom
+        backbone_rmsd = calculate_rmsd_from_coords(
+            exp_backbone_array,
+            comp_backbone_array,
+            rotation_matrix,
+            translation_vector
+        )
+
+        # Component-specific backbone RMSDs
+        if exp_backbone_protein_coords and comp_backbone_protein_coords:
+            backbone_protein_rmsd = calculate_rmsd_from_coords(
+                np.array(exp_backbone_protein_coords),
+                np.array(comp_backbone_protein_coords),
+                rotation_matrix,
+                translation_vector
+            )
+        else:
+            backbone_protein_rmsd = float("inf")
+
+        if exp_backbone_dna_coords and comp_backbone_dna_coords:
+            backbone_dna_rmsd = calculate_rmsd_from_coords(
+                np.array(exp_backbone_dna_coords),
+                np.array(comp_backbone_dna_coords),
+                rotation_matrix,
+                translation_vector
+            )
+        else:
+            backbone_dna_rmsd = float("inf")
+    else:
+        backbone_rmsd = float("inf")
+        backbone_protein_rmsd = float("inf")
+        backbone_dna_rmsd = float("inf")
+
+    # ===================================================================
+    # CAPRI i-RMSD: Interface backbone RMSD (superimposed on interface)
+    # ===================================================================
+
+    exp_interface_backbone_coords = []
+    comp_interface_backbone_coords = []
+
+    # Collect backbone atoms from interface residues
+    for chain_id, res_ids in interface_residues.items():
+        for res_id in res_ids:
+            if res_id in exp_residues and res_id in sequence_mapping:
+                comp_res_id = sequence_mapping[res_id]
+                if comp_res_id in comp_residues:
+                    exp_residue = exp_residues[res_id]
+                    comp_residue = comp_residues[comp_res_id]
+
+                    try:
+                        exp_backbone = get_backbone_atoms(exp_residue, mode="representative")
+                        comp_backbone = get_backbone_atoms(comp_residue, mode="representative")
+
+                        if exp_backbone and comp_backbone:
+                            exp_interface_backbone_coords.append(exp_backbone[0].get_coord())
+                            comp_interface_backbone_coords.append(comp_backbone[0].get_coord())
+                    except ValueError:
+                        continue
+
+    # Calculate i-RMSD if we have interface residues
+    if exp_interface_backbone_coords and comp_interface_backbone_coords:
+        exp_interface_array = np.array(exp_interface_backbone_coords)
+        comp_interface_array = np.array(comp_interface_backbone_coords)
+
+        capri_i_rmsd, _, _ = calculate_interface_rmsd(
+            exp_interface_array,
+            comp_interface_array
+        )
+    else:
+        capri_i_rmsd = float("inf")
+
+    # ===================================================================
+    # CAPRI l-RMSD: Ligand backbone RMSD (superimposed on receptor)
+    # ===================================================================
+
+    if (exp_backbone_protein_coords and comp_backbone_protein_coords and
+        exp_backbone_dna_coords and comp_backbone_dna_coords):
+
+        capri_l_rmsd = calculate_ligand_rmsd(
+            np.array(exp_backbone_protein_coords),
+            np.array(comp_backbone_protein_coords),
+            np.array(exp_backbone_dna_coords),
+            np.array(comp_backbone_dna_coords)
+        )
+    else:
+        capri_l_rmsd = float("inf")
+
+    # ===================================================================
+    # CAPRI fnat: Fraction of Native Contacts
+    # ===================================================================
+
+    fnat = calculate_fnat(
+        experimental_structure,
+        computational_structure,
+        exp_prot_chains,
+        exp_dna_chains,
+        sequence_mapping
+    )
+
+    # ===================================================================
+    # DockQ: Combined Quality Score
+    # ===================================================================
+
+    dockq = calculate_dockq(capri_i_rmsd, capri_l_rmsd, fnat)
+
     # Calculate orientation and translational errors
     orientation_error = calculate_orientation_error(rotation_matrix)
     translational_error = np.linalg.norm(translation_vector)
@@ -544,17 +748,32 @@ def align_protein_dna_complex(
 
     return AlignmentResult(
         sequence_mapping=sequence_mapping,
+        # Legacy all-atom metrics
         structural_rmsd=structural_rmsd,
         per_residue_rmsd=per_residue_rmsd,
         protein_rmsd=protein_rmsd,
         dna_rmsd=dna_rmsd,
         interface_rmsd=interface_rmsd,
+        # CAPRI backbone metrics
+        capri_i_rmsd=capri_i_rmsd,
+        capri_l_rmsd=capri_l_rmsd,
+        backbone_rmsd=backbone_rmsd,
+        backbone_protein_rmsd=backbone_protein_rmsd,
+        backbone_dna_rmsd=backbone_dna_rmsd,
+        fnat=fnat,
+        dockq=dockq,
+        # Transformation matrices
         rotation_matrix=rotation_matrix,
         translation_vector=translation_vector,
+        # Error decomposition
         orientation_error=orientation_error,
         translational_error=translational_error,
+        # Structure information
         protein_chains=exp_prot_chains,
         dna_chains=exp_dna_chains,
         interface_residues=interface_residues,
+        # Output files
         output_files=output_files,
+        # Metadata
+        atom_selection="all",  # This alignment uses all-atom mode
     )
