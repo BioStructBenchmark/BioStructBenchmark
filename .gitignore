@@ -24,6 +24,9 @@ results/
 htmlcov/
 .tox/
 
+# Profiling output
+profiles/
+
 # IDEs
 .vscode/
 .idea/
@@ -38,3 +41,10 @@ Thumbs.db
 # Environment files
 .env
 .env.local
+
+# Large benchmark datasets (download with docs/to-dl.md)
+tests/data/dna-protein/
+tests/data/dna-protein_structures.tar.gz
+tests/data/benchmark/
+tests/data/PDNAbenchmarks/
+tests/data/Benchmark_tables.xlsx

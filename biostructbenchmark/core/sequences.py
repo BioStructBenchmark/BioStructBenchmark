@@ -85,9 +85,11 @@ def classify_chains(structure: gemmi.Structure) -> tuple[list[str], list[str]]:
             dna_residues = 0
 
             for residue in chain:
-                if is_amino_acid(residue):
+                # Inline check for performance (avoid function call overhead)
+                res_name = residue.name
+                if res_name in AMINO_ACIDS:
                     protein_residues += 1
-                elif residue.name in DNA_NUCLEOTIDE_MAP:
+                elif res_name in DNA_NUCLEOTIDE_MAP:
                     dna_residues += 1
 
             # Classify based on predominant residue type
@@ -117,8 +119,13 @@ def get_protein_sequence(structure: gemmi.Structure, chain_id: str) -> str:
     for model in structure:
         for chain in model:
             if chain.name == chain_id:
-                residues = [r for r in chain if is_amino_acid(r)]
-                return "".join(AMINO_ACID_MAP.get(r.name, "X") for r in residues)
+                # Single pass: check membership and get mapping in one iteration
+                chars = []
+                for r in chain:
+                    code = AMINO_ACID_MAP.get(r.name)
+                    if code:
+                        chars.append(code)
+                return "".join(chars)
     return ""
 
 
@@ -127,12 +134,14 @@ def get_dna_sequence(structure: gemmi.Structure, chain_id: str) -> str:
     for model in structure:
         for chain in model:
             if chain.name == chain_id:
-                sequence = ""
+                # Sort by sequence number and build list (faster than string concat)
                 residues = sorted(chain, key=lambda r: r.seqid.num)
+                chars = []
                 for residue in residues:
-                    if residue.name in DNA_NUCLEOTIDE_MAP:
-                        sequence += DNA_NUCLEOTIDE_MAP[residue.name]
-                return sequence
+                    code = DNA_NUCLEOTIDE_MAP.get(residue.name)
+                    if code:
+                        chars.append(code)
+                return "".join(chars)
     return ""
 
 

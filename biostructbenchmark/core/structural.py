@@ -81,27 +81,56 @@ def calculate_per_residue_rmsd(
     Returns:
         Dict mapping residue_id to RMSD
     """
-    per_residue_rmsd = {}
+    start_time = time.perf_counter()
+
+    # Collect valid residue pairs and their coordinates
+    residue_ids = []
+    exp_coords_list = []
+    comp_coords_list = []
+    atom_counts = []
 
     for exp_res_id, comp_res_id in mapping.items():
         if exp_res_id in exp_atoms and comp_res_id in comp_atoms:
-            exp_coords = np.array(exp_atoms[exp_res_id])
-            comp_coords = np.array(comp_atoms[comp_res_id])
+            exp_c = exp_atoms[exp_res_id]
+            comp_c = comp_atoms[comp_res_id]
+            # Both should have same number of atoms
+            if len(exp_c) == len(comp_c) and len(exp_c) > 0:
+                residue_ids.append(exp_res_id)
+                exp_coords_list.extend(exp_c)
+                comp_coords_list.extend(comp_c)
+                atom_counts.append(len(exp_c))
 
-            # Both should have same number of atoms for proper RMSD
-            if exp_coords.shape == comp_coords.shape:
-                # Apply transformation to computational coordinates if provided
-                if rotation_matrix is not None and translation_vector is not None:
-                    comp_coords_transformed = (
-                        np.dot(comp_coords, rotation_matrix) + translation_vector
-                    )
-                else:
-                    comp_coords_transformed = comp_coords
+    if not residue_ids:
+        return {}
 
-                # Calculate RMSD: sqrt(mean(squared_distances))
-                squared_diffs = np.sum((exp_coords - comp_coords_transformed) ** 2, axis=1)
-                rmsd = np.sqrt(np.mean(squared_diffs))
-                per_residue_rmsd[exp_res_id] = rmsd
+    # Convert to numpy arrays once
+    exp_coords = np.array(exp_coords_list)
+    comp_coords = np.array(comp_coords_list)
+
+    # Apply transformation if provided
+    if rotation_matrix is not None and translation_vector is not None:
+        comp_coords = comp_coords @ rotation_matrix + translation_vector
+
+    # Calculate squared distances for all atoms at once
+    squared_dists = np.sum((exp_coords - comp_coords) ** 2, axis=1)
+
+    # Compute per-residue sums using reduceat (single vectorized operation)
+    atom_counts_arr = np.array(atom_counts)
+    indices = np.concatenate([[0], np.cumsum(atom_counts_arr[:-1])])
+    residue_sums = np.add.reduceat(squared_dists, indices)
+
+    # Compute RMSD: sqrt(sum / count) for each residue
+    residue_rmsds = np.sqrt(residue_sums / atom_counts_arr)
+
+    # Build result dict
+    per_residue_rmsd = dict(zip(residue_ids, residue_rmsds.astype(float).tolist()))
+
+    elapsed = (time.perf_counter() - start_time) * 1000
+    logger.debug(
+        "Per-residue RMSD calculated for %d residues in %.2f ms",
+        len(per_residue_rmsd),
+        elapsed,
+    )
 
     return per_residue_rmsd
 

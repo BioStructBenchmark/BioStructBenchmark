@@ -432,26 +432,27 @@ def align_protein_dna_complex(
             exp_atoms = {atom.name: atom for atom in exp_residue}
             comp_atoms = {atom.name: atom for atom in comp_residue}
 
-            # Find common atoms
-            common_atom_names = set(exp_atoms.keys()) & set(comp_atoms.keys())
+            # Find common atoms (intersection gives deterministic iteration order)
+            common_atom_names = exp_atoms.keys() & comp_atoms.keys()
 
             if common_atom_names:
                 exp_residue_coords = []
                 comp_residue_coords = []
 
-                # Collect coordinates for common atoms in the same order
-                for atom_name in sorted(common_atom_names):
+                # Collect coordinates for common atoms (order doesn't matter for RMSD)
+                for atom_name in common_atom_names:
                     exp_atom = exp_atoms[atom_name]
                     comp_atom = comp_atoms[atom_name]
 
-                    exp_coord = [exp_atom.pos.x, exp_atom.pos.y, exp_atom.pos.z]
-                    comp_coord = [comp_atom.pos.x, comp_atom.pos.y, comp_atom.pos.z]
+                    exp_residue_coords.append(
+                        (exp_atom.pos.x, exp_atom.pos.y, exp_atom.pos.z)
+                    )
+                    comp_residue_coords.append(
+                        (comp_atom.pos.x, comp_atom.pos.y, comp_atom.pos.z)
+                    )
 
-                    exp_atoms_for_alignment.append(exp_coord)
-                    comp_atoms_for_alignment.append(comp_coord)
-
-                    exp_residue_coords.append(exp_coord)
-                    comp_residue_coords.append(comp_coord)
+                exp_atoms_for_alignment.extend(exp_residue_coords)
+                comp_atoms_for_alignment.extend(comp_residue_coords)
 
                 exp_atoms_dict[exp_residue_id] = exp_residue_coords
                 comp_atoms_dict[comp_residue_id] = comp_residue_coords
@@ -486,17 +487,19 @@ def align_protein_dna_complex(
         exp_atoms_dict, comp_atoms_dict, sequence_mapping, rotation_matrix, translation_vector
     )
 
-    # Calculate component-specific RMSDs
-    protein_rmsds = [
-        rmsd
-        for res_id, rmsd in per_residue_rmsd.items()
-        if any(res_id.startswith(f"{chain}:") for chain in exp_prot_chains)
-    ]
-    dna_rmsds = [
-        rmsd
-        for res_id, rmsd in per_residue_rmsd.items()
-        if any(res_id.startswith(f"{chain}:") for chain in exp_dna_chains)
-    ]
+    # Calculate component-specific RMSDs using set-based prefix lookup
+    prot_prefixes = {f"{chain}:" for chain in exp_prot_chains}
+    dna_prefixes = {f"{chain}:" for chain in exp_dna_chains}
+
+    protein_rmsds = []
+    dna_rmsds = []
+    for res_id, rmsd in per_residue_rmsd.items():
+        # Extract chain prefix (everything before first colon + colon)
+        prefix = res_id.split(":")[0] + ":"
+        if prefix in prot_prefixes:
+            protein_rmsds.append(rmsd)
+        elif prefix in dna_prefixes:
+            dna_rmsds.append(rmsd)
 
     protein_rmsd = np.mean(protein_rmsds) if protein_rmsds else float("inf")
     dna_rmsd = np.mean(dna_rmsds) if dna_rmsds else float("inf")
