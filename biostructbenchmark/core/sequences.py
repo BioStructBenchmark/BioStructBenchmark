@@ -4,9 +4,8 @@ Sequence alignment and chain matching functionality
 
 from dataclasses import dataclass
 
+import gemmi
 from Bio.Align import PairwiseAligner
-from Bio.PDB import Structure
-from Bio.PDB.Polypeptide import is_aa
 from Bio.SeqUtils import seq1
 
 # Define DNA nucleotide mapping
@@ -21,6 +20,35 @@ DNA_NUCLEOTIDE_MAP = {
     "C": "C",
 }
 
+# Standard amino acids (3-letter codes)
+AMINO_ACIDS = {
+    "ALA",
+    "ARG",
+    "ASN",
+    "ASP",
+    "CYS",
+    "GLN",
+    "GLU",
+    "GLY",
+    "HIS",
+    "ILE",
+    "LEU",
+    "LYS",
+    "MET",
+    "PHE",
+    "PRO",
+    "SER",
+    "THR",
+    "TRP",
+    "TYR",
+    "VAL",
+}
+
+
+def is_amino_acid(residue: gemmi.Residue) -> bool:
+    """Check if a residue is a standard amino acid."""
+    return residue.name in AMINO_ACIDS
+
 
 @dataclass
 class ChainMatch:
@@ -33,7 +61,7 @@ class ChainMatch:
     rmsd: float
 
 
-def classify_chains(structure: Structure) -> tuple[list[str], list[str]]:
+def classify_chains(structure: gemmi.Structure) -> tuple[list[str], list[str]]:
     """
     Classify chains as protein or DNA based on residue content.
 
@@ -45,14 +73,14 @@ def classify_chains(structure: Structure) -> tuple[list[str], list[str]]:
 
     for model in structure:
         for chain in model:
-            chain_id = chain.get_id()
+            chain_id = chain.name
             protein_residues = 0
             dna_residues = 0
 
             for residue in chain:
-                if is_aa(residue, standard=True):
+                if is_amino_acid(residue):
                     protein_residues += 1
-                elif residue.get_resname() in DNA_NUCLEOTIDE_MAP:
+                elif residue.name in DNA_NUCLEOTIDE_MAP:
                     dna_residues += 1
 
             # Classify based on predominant residue type
@@ -64,26 +92,26 @@ def classify_chains(structure: Structure) -> tuple[list[str], list[str]]:
     return protein_chains, dna_chains
 
 
-def get_protein_sequence(structure: Structure, chain_id: str) -> str:
+def get_protein_sequence(structure: gemmi.Structure, chain_id: str) -> str:
     """Extract protein sequence from a specific chain."""
     for model in structure:
         for chain in model:
-            if chain.get_id() == chain_id:
-                residues = [r for r in chain if is_aa(r, standard=True)]
-                return "".join(seq1(r.get_resname()) for r in residues)
+            if chain.name == chain_id:
+                residues = [r for r in chain if is_amino_acid(r)]
+                return "".join(seq1(r.name) for r in residues)
     return ""
 
 
-def get_dna_sequence(structure: Structure, chain_id: str) -> str:
+def get_dna_sequence(structure: gemmi.Structure, chain_id: str) -> str:
     """Extract DNA sequence from a specific chain."""
     for model in structure:
         for chain in model:
-            if chain.get_id() == chain_id:
+            if chain.name == chain_id:
                 sequence = ""
-                for residue in sorted(chain.get_residues(), key=lambda r: r.get_id()[1]):
-                    residue_name = residue.get_resname()
-                    if residue_name in DNA_NUCLEOTIDE_MAP:
-                        sequence += DNA_NUCLEOTIDE_MAP[residue_name]
+                residues = sorted(chain, key=lambda r: r.seqid.num)
+                for residue in residues:
+                    if residue.name in DNA_NUCLEOTIDE_MAP:
+                        sequence += DNA_NUCLEOTIDE_MAP[residue.name]
                 return sequence
     return ""
 
@@ -118,7 +146,7 @@ def calculate_sequence_identity(sequence1: str, sequence2: str) -> float:
 
 
 def match_chains_by_similarity(
-    exp_structure: Structure, comp_structure: Structure
+    exp_structure: gemmi.Structure, comp_structure: gemmi.Structure
 ) -> list[ChainMatch]:
     """
     Match chains between experimental and computational structures based on sequence similarity.
@@ -198,8 +226,18 @@ def match_chains_by_similarity(
     return chain_matches
 
 
+def _get_residue_id(residue: gemmi.Residue) -> tuple:
+    """Get residue ID tuple compatible with old BioPython format."""
+    # BioPython format: (' ', resnum, icode)
+    icode = residue.seqid.icode if residue.seqid.icode else " "
+    return (" ", residue.seqid.num, icode)
+
+
 def align_specific_protein_chains(
-    exp_structure: Structure, comp_structure: Structure, exp_chain_id: str, comp_chain_id: str
+    exp_structure: gemmi.Structure,
+    comp_structure: gemmi.Structure,
+    exp_chain_id: str,
+    comp_chain_id: str,
 ) -> dict[str, str]:
     """
     Align protein sequences for specific chain pairs.
@@ -214,23 +252,23 @@ def align_specific_protein_chains(
     # Get experimental chain residues
     for model in exp_structure:
         for chain in model:
-            if chain.get_id() == exp_chain_id:
-                exp_residues = [r for r in chain if is_aa(r, standard=True)]
+            if chain.name == exp_chain_id:
+                exp_residues = [r for r in chain if is_amino_acid(r)]
                 break
 
     # Get computational chain residues
     for model in comp_structure:
         for chain in model:
-            if chain.get_id() == comp_chain_id:
-                comp_residues = [r for r in chain if is_aa(r, standard=True)]
+            if chain.name == comp_chain_id:
+                comp_residues = [r for r in chain if is_amino_acid(r)]
                 break
 
     if not exp_residues or not comp_residues:
         return {}
 
     # Create sequences
-    exp_seq = "".join(seq1(r.get_resname()) for r in exp_residues)
-    comp_seq = "".join(seq1(r.get_resname()) for r in comp_residues)
+    exp_seq = "".join(seq1(r.name) for r in exp_residues)
+    comp_seq = "".join(seq1(r.name) for r in comp_residues)
 
     # Align sequences
     aligner = PairwiseAligner()
@@ -258,8 +296,8 @@ def align_specific_protein_chains(
     for i in range(len(exp_aligned)):
         if exp_aligned[i] != "-" and comp_aligned[i] != "-":
             if exp_idx < len(exp_residues) and comp_idx < len(comp_residues):
-                exp_full_id = f"{exp_chain_id}:{exp_residues[exp_idx].get_id()}"
-                comp_full_id = f"{comp_chain_id}:{comp_residues[comp_idx].get_id()}"
+                exp_full_id = f"{exp_chain_id}:{_get_residue_id(exp_residues[exp_idx])}"
+                comp_full_id = f"{comp_chain_id}:{_get_residue_id(comp_residues[comp_idx])}"
                 mapping[exp_full_id] = comp_full_id
             exp_idx += 1
             comp_idx += 1
@@ -272,7 +310,10 @@ def align_specific_protein_chains(
 
 
 def align_specific_dna_chains(
-    exp_structure: Structure, comp_structure: Structure, exp_chain_id: str, comp_chain_id: str
+    exp_structure: gemmi.Structure,
+    comp_structure: gemmi.Structure,
+    exp_chain_id: str,
+    comp_chain_id: str,
 ) -> dict[str, str]:
     """
     Align DNA sequences for specific chain pairs.
@@ -287,24 +328,24 @@ def align_specific_dna_chains(
     # Get experimental chain residues
     for model in exp_structure:
         for chain in model:
-            if chain.get_id() == exp_chain_id:
-                residues = sorted(chain.get_residues(), key=lambda r: r.get_id()[1])
+            if chain.name == exp_chain_id:
+                residues = sorted(chain, key=lambda r: r.seqid.num)
                 exp_residues = [
-                    (r.get_id(), f"{exp_chain_id}:{r.get_id()}")
+                    (_get_residue_id(r), f"{exp_chain_id}:{_get_residue_id(r)}")
                     for r in residues
-                    if r.get_resname() in DNA_NUCLEOTIDE_MAP
+                    if r.name in DNA_NUCLEOTIDE_MAP
                 ]
                 break
 
     # Get computational chain residues
     for model in comp_structure:
         for chain in model:
-            if chain.get_id() == comp_chain_id:
-                residues = sorted(chain.get_residues(), key=lambda r: r.get_id()[1])
+            if chain.name == comp_chain_id:
+                residues = sorted(chain, key=lambda r: r.seqid.num)
                 comp_residues = [
-                    (r.get_id(), f"{comp_chain_id}:{r.get_id()}")
+                    (_get_residue_id(r), f"{comp_chain_id}:{_get_residue_id(r)}")
                     for r in residues
-                    if r.get_resname() in DNA_NUCLEOTIDE_MAP
+                    if r.name in DNA_NUCLEOTIDE_MAP
                 ]
                 break
 

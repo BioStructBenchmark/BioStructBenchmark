@@ -20,56 +20,58 @@ from biostructbenchmark.core.structural import (
 )
 
 
+def create_mock_residue(name, seqid_num):
+    """Create a mock residue with GEMMI-compatible interface."""
+    residue = Mock()
+    residue.name = name
+    residue.seqid = Mock()
+    residue.seqid.num = seqid_num
+    residue.seqid.icode = ""
+    return residue
+
+
+def create_mock_chain(chain_name, residues):
+    """Create a mock chain with GEMMI-compatible interface."""
+    chain = Mock()
+    chain.name = chain_name
+    chain.__iter__ = Mock(return_value=iter(residues))
+    return chain
+
+
+def create_mock_structure(chains):
+    """Create a mock structure with GEMMI-compatible interface."""
+    structure = Mock()
+    model = Mock()
+    model.__iter__ = Mock(return_value=iter(chains))
+    structure.__iter__ = Mock(return_value=iter([model]))
+    return structure
+
+
 class TestChainClassification:
     """Test chain classification functionality."""
 
     def test_classify_protein_chains(self):
         """Test classification of protein chains."""
-        # Mock structure with protein residues
-        structure = Mock()
-        model = Mock()
-        chain = Mock()
-        chain.get_id.return_value = "A"
+        # Create protein residues
+        protein_residues = [create_mock_residue("ALA", i) for i in range(1, 4)]
+        chain = create_mock_chain("A", protein_residues)
+        structure = create_mock_structure([chain])
 
-        # Mock protein residues
-        protein_residues = []
-        for i in range(3):
-            residue = Mock()
-            residue.get_resname.return_value = "ALA"
-            protein_residues.append(residue)
-
-        chain.__iter__ = Mock(return_value=iter(protein_residues))
-        model.__iter__ = Mock(return_value=iter([chain]))
-        structure.__iter__ = Mock(return_value=iter([model]))
-
-        with patch("biostructbenchmark.core.sequences.is_aa") as mock_is_aa:
-            mock_is_aa.return_value = True
-            protein_chains, dna_chains = classify_chains(structure)
+        protein_chains, dna_chains = classify_chains(structure)
 
         assert protein_chains == ["A"]
         assert dna_chains == []
 
     def test_classify_dna_chains(self):
         """Test classification of DNA chains."""
-        structure = Mock()
-        model = Mock()
-        chain = Mock()
-        chain.get_id.return_value = "B"
+        # Create DNA residues
+        dna_residues = [
+            create_mock_residue(nucleotide, i) for i, nucleotide in enumerate(["DA", "DT", "DG"], 1)
+        ]
+        chain = create_mock_chain("B", dna_residues)
+        structure = create_mock_structure([chain])
 
-        # Mock DNA residues
-        dna_residues = []
-        for nucleotide in ["DA", "DT", "DG"]:
-            residue = Mock()
-            residue.get_resname.return_value = nucleotide
-            dna_residues.append(residue)
-
-        chain.__iter__ = Mock(return_value=iter(dna_residues))
-        model.__iter__ = Mock(return_value=iter([chain]))
-        structure.__iter__ = Mock(return_value=iter([model]))
-
-        with patch("biostructbenchmark.core.sequences.is_aa") as mock_is_aa:
-            mock_is_aa.return_value = False
-            protein_chains, dna_chains = classify_chains(structure)
+        protein_chains, dna_chains = classify_chains(structure)
 
         assert protein_chains == []
         assert dna_chains == ["B"]
@@ -80,51 +82,26 @@ class TestSequenceExtraction:
 
     def test_get_protein_sequence(self):
         """Test protein sequence extraction."""
-        structure = Mock()
-        model = Mock()
-        chain = Mock()
-        chain.get_id.return_value = "A"
+        # Create protein residues with standard amino acids
+        protein_residues = [
+            create_mock_residue(aa, i) for i, aa in enumerate(["ALA", "GLY", "VAL"], 1)
+        ]
+        chain = create_mock_chain("A", protein_residues)
+        structure = create_mock_structure([chain])
 
-        # Mock protein residues
-        residues = []
-        for aa in ["ALA", "GLY", "VAL"]:
-            residue = Mock()
-            residue.get_resname.return_value = aa
-            residues.append(residue)
-
-        chain.__iter__ = Mock(return_value=iter(residues))
-        model.__iter__ = Mock(return_value=iter([chain]))
-        structure.__iter__ = Mock(return_value=iter([model]))
-
-        with (
-            patch("biostructbenchmark.core.sequences.is_aa") as mock_is_aa,
-            patch("biostructbenchmark.core.sequences.seq1") as mock_seq1,
-        ):
-            mock_is_aa.return_value = True
-            mock_seq1.side_effect = lambda x: {"ALA": "A", "GLY": "G", "VAL": "V"}[x]
-
-            sequence = get_protein_sequence(structure, "A")
+        sequence = get_protein_sequence(structure, "A")
 
         assert sequence == "AGV"
 
     def test_get_dna_sequence(self):
         """Test DNA sequence extraction."""
-        structure = Mock()
-        model = Mock()
-        chain = Mock()
-        chain.get_id.return_value = "B"
-
-        # Mock DNA residues with proper ordering
-        residues = []
-        for i, nucleotide in enumerate(["DA", "DT", "DG", "DC"]):
-            residue = Mock()
-            residue.get_resname.return_value = nucleotide
-            residue.get_id.return_value = (" ", i + 1, " ")  # Standard PDB residue ID
-            residues.append(residue)
-
-        chain.get_residues.return_value = residues
-        model.__iter__ = Mock(return_value=iter([chain]))
-        structure.__iter__ = Mock(return_value=iter([model]))
+        # Create DNA residues
+        dna_residues = [
+            create_mock_residue(nucleotide, i)
+            for i, nucleotide in enumerate(["DA", "DT", "DG", "DC"], 1)
+        ]
+        chain = create_mock_chain("B", dna_residues)
+        structure = create_mock_structure([chain])
 
         sequence = get_dna_sequence(structure, "B")
         assert sequence == "ATGC"
@@ -203,40 +180,36 @@ class TestInterfaceDetection:
 
     def test_find_interface_residues_mock(self):
         """Test interface residue detection with mock structures."""
-        structure = Mock()
-        model = Mock()
-
-        # Mock protein chain
-        prot_chain = Mock()
-        prot_chain.get_id.return_value = "A"
-
-        # Mock DNA chain
-        dna_chain = Mock()
-        dna_chain.get_id.return_value = "B"
-
-        # Mock protein residue with atoms
-        prot_residue = Mock()
-        prot_residue.get_id.return_value = (" ", 1, " ")
-        prot_residue.get_resname.return_value = "ALA"  # Add residue name for is_aa check
+        # Create protein atom
         prot_atom = Mock()
-        prot_atom.__sub__ = Mock(return_value=3.0)  # Distance of 3 Angstroms
-        prot_residue.get_atoms.return_value = [prot_atom]
+        prot_atom.pos = Mock()
+        prot_atom.pos.x = 0.0
+        prot_atom.pos.y = 0.0
+        prot_atom.pos.z = 0.0
 
-        # Mock DNA residue with atoms
-        dna_residue = Mock()
-        dna_residue.get_id.return_value = (" ", 1, " ")
-        dna_residue.get_resname.return_value = "DA"
+        # Create DNA atom close to protein atom
         dna_atom = Mock()
-        dna_residue.get_atoms.return_value = [dna_atom]
+        dna_atom.pos = Mock()
+        dna_atom.pos.x = 3.0
+        dna_atom.pos.y = 0.0
+        dna_atom.pos.z = 0.0
 
-        prot_chain.__iter__ = Mock(return_value=iter([prot_residue]))
-        dna_chain.__iter__ = Mock(return_value=iter([dna_residue]))
-        model.__iter__ = Mock(return_value=iter([prot_chain, dna_chain]))
-        structure.__iter__ = Mock(return_value=iter([model]))
+        # Create protein residue
+        prot_residue = create_mock_residue("ALA", 1)
+        prot_residue.__iter__ = Mock(return_value=iter([prot_atom]))
 
-        with patch("biostructbenchmark.core.sequences.is_aa") as mock_is_aa:
-            mock_is_aa.return_value = True
-            interface_residues = find_interface_residues(structure, ["A"], ["B"], 5.0)
+        # Create DNA residue
+        dna_residue = create_mock_residue("DA", 1)
+        dna_residue.__iter__ = Mock(return_value=iter([dna_atom]))
+
+        # Create chains
+        prot_chain = create_mock_chain("A", [prot_residue])
+        dna_chain = create_mock_chain("B", [dna_residue])
+
+        # Create structure
+        structure = create_mock_structure([prot_chain, dna_chain])
+
+        interface_residues = find_interface_residues(structure, ["A"], ["B"], 5.0)
 
         assert "A" in interface_residues
         assert "B" in interface_residues

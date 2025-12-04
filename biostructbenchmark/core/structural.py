@@ -5,31 +5,49 @@ Structural alignment and RMSD calculations
 from typing import Any
 
 import numpy as np
-from Bio.SVDSuperimposer import SVDSuperimposer
 
 
 def superimpose_structures(
     exp_coords: np.ndarray, comp_coords: np.ndarray
-) -> tuple[Any, np.ndarray, np.ndarray]:
+) -> tuple[float, np.ndarray, np.ndarray]:
     """
     Perform structural superimposition using SVD.
 
+    Uses Kabsch algorithm for optimal rotation matrix calculation.
+
     Args:
-        exp_coords: Experimental structure coordinates
-        comp_coords: Computational structure coordinates
+        exp_coords: Experimental structure coordinates (fixed)
+        comp_coords: Computational structure coordinates (moving)
 
     Returns:
         tuple: (rmsd, rotation_matrix, translation_vector)
     """
-    superimposer = SVDSuperimposer()
-    superimposer.set(exp_coords, comp_coords)
-    superimposer.run()
+    # Center both coordinate sets
+    exp_center = exp_coords.mean(axis=0)
+    comp_center = comp_coords.mean(axis=0)
+    exp_centered = exp_coords - exp_center
+    comp_centered = comp_coords - comp_center
 
-    rmsd = superimposer.get_rms()
-    rotation_matrix = superimposer.get_rotran()[0]
-    translation_vector = superimposer.get_rotran()[1]
+    # Compute covariance matrix (H is standard notation in Kabsch algorithm)
+    H = comp_centered.T @ exp_centered  # noqa: N806
 
-    return rmsd, rotation_matrix, translation_vector
+    # SVD decomposition (U, S, Vt, R are standard matrix notation)
+    U, S, Vt = np.linalg.svd(H)  # noqa: N806
+    R = Vt.T @ U.T  # noqa: N806
+
+    # Handle reflection case (ensure proper rotation)
+    if np.linalg.det(R) < 0:
+        Vt[-1, :] *= -1
+        R = Vt.T @ U.T  # noqa: N806
+
+    # Calculate translation
+    t = exp_center - R @ comp_center
+
+    # Calculate RMSD
+    comp_transformed = (R @ comp_coords.T).T + t
+    rmsd = float(np.sqrt(((exp_coords - comp_transformed) ** 2).sum() / len(exp_coords)))
+
+    return rmsd, R, t
 
 
 def calculate_per_residue_rmsd(

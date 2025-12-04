@@ -16,47 +16,67 @@ from biostructbenchmark.core.sequences import (
 )
 
 
+def create_mock_residue(resname, seqid_num=1):
+    """Create a mock residue with GEMMI-compatible interface."""
+    residue = Mock()
+    residue.name = resname
+    residue.seqid = Mock()
+    residue.seqid.num = seqid_num
+    residue.seqid.icode = ""
+    return residue
+
+
+def create_mock_chain(chain_id, residues):
+    """Create a mock chain with GEMMI-compatible interface."""
+    chain = Mock()
+    chain.name = chain_id
+    chain.__iter__ = Mock(return_value=iter(residues))
+    return chain
+
+
+def create_mock_structure(chains):
+    """Create a mock structure with GEMMI-compatible interface."""
+    structure = Mock()
+    model = Mock()
+    model.__iter__ = Mock(return_value=iter(chains))
+    structure.__iter__ = Mock(return_value=iter([model]))
+    return structure
+
+
 class TestChainMatching:
     """Test chain matching functionality - the most critical component"""
-
-    def create_mock_chain(self, chain_id, residues):
-        """Create a mock chain with specified residues"""
-        chain = Mock()
-        chain.get_id.return_value = chain_id
-        chain.get_residues.return_value = residues
-        chain.__iter__ = lambda self: iter(residues)
-        return chain
-
-    def create_mock_residue(self, resname):
-        """Create a mock residue"""
-        residue = Mock()
-        residue.get_resname.return_value = resname
-        return residue
-
-    def create_mock_structure(self, chains):
-        """Create a mock structure"""
-        structure = Mock()
-        model = Mock()
-        model.__iter__ = lambda self: iter(chains)
-        structure.__iter__ = lambda self: iter([model])
-        return structure
 
     def test_match_chains_prevents_duplicate_mapping(self):
         """Test that chain matching creates 1:1 mappings (the bug we fixed)"""
         # Create identical protein chains
-        protein_residues = [
-            self.create_mock_residue("ALA"),
-            self.create_mock_residue("GLY"),
-            self.create_mock_residue("VAL"),
+        protein_residues_a = [
+            create_mock_residue("ALA", 1),
+            create_mock_residue("GLY", 2),
+            create_mock_residue("VAL", 3),
+        ]
+        protein_residues_b = [
+            create_mock_residue("ALA", 1),
+            create_mock_residue("GLY", 2),
+            create_mock_residue("VAL", 3),
+        ]
+        protein_residues_a2 = [
+            create_mock_residue("ALA", 1),
+            create_mock_residue("GLY", 2),
+            create_mock_residue("VAL", 3),
+        ]
+        protein_residues_b2 = [
+            create_mock_residue("ALA", 1),
+            create_mock_residue("GLY", 2),
+            create_mock_residue("VAL", 3),
         ]
 
-        exp_chain_a = self.create_mock_chain("A", protein_residues)
-        exp_chain_b = self.create_mock_chain("B", protein_residues)
-        comp_chain_a = self.create_mock_chain("A", protein_residues)
-        comp_chain_b = self.create_mock_chain("B", protein_residues)
+        exp_chain_a = create_mock_chain("A", protein_residues_a)
+        exp_chain_b = create_mock_chain("B", protein_residues_b)
+        comp_chain_a = create_mock_chain("A", protein_residues_a2)
+        comp_chain_b = create_mock_chain("B", protein_residues_b2)
 
-        exp_structure = self.create_mock_structure([exp_chain_a, exp_chain_b])
-        comp_structure = self.create_mock_structure([comp_chain_a, comp_chain_b])
+        exp_structure = create_mock_structure([exp_chain_a, exp_chain_b])
+        comp_structure = create_mock_structure([comp_chain_a, comp_chain_b])
 
         # Mock sequence functions to avoid BioPython dependency
         with pytest.MonkeyPatch().context() as mp:
@@ -65,7 +85,7 @@ class TestChainMatching:
                 lambda struct, chain_id: "AGV",
             )  # Same sequence for all
             mp.setattr(
-                "biostructbenchmark.core.sequences.get_dna_sequence", lambda struct, chain_id: None
+                "biostructbenchmark.core.sequences.get_dna_sequence", lambda struct, chain_id: ""
             )  # No DNA
 
             matches = match_chains_by_similarity(exp_structure, comp_structure)
@@ -80,15 +100,16 @@ class TestChainMatching:
     def test_match_chains_respects_sequence_threshold(self):
         """Test that chain matching respects minimum identity thresholds"""
         # Create chains with different sequences
-        good_residues = [self.create_mock_residue("ALA"), self.create_mock_residue("GLY")]
-        poor_residues = [self.create_mock_residue("PHE"), self.create_mock_residue("TRP")]
+        good_residues = [create_mock_residue("ALA", 1), create_mock_residue("GLY", 2)]
+        good_residues2 = [create_mock_residue("ALA", 1), create_mock_residue("GLY", 2)]
+        poor_residues2 = [create_mock_residue("PHE", 1), create_mock_residue("TRP", 2)]
 
-        exp_chain = self.create_mock_chain("A", good_residues)
-        comp_chain_good = self.create_mock_chain("A", good_residues)
-        comp_chain_poor = self.create_mock_chain("B", poor_residues)
+        exp_chain = create_mock_chain("A", good_residues)
+        comp_chain_good = create_mock_chain("A", good_residues2)
+        comp_chain_poor = create_mock_chain("B", poor_residues2)
 
-        exp_structure = self.create_mock_structure([exp_chain])
-        comp_structure = self.create_mock_structure([comp_chain_good, comp_chain_poor])
+        exp_structure = create_mock_structure([exp_chain])
+        comp_structure = create_mock_structure([comp_chain_good, comp_chain_poor])
 
         with pytest.MonkeyPatch().context() as mp:
 
@@ -99,7 +120,7 @@ class TestChainMatching:
 
             mp.setattr("biostructbenchmark.core.sequences.get_protein_sequence", mock_protein_seq)
             mp.setattr(
-                "biostructbenchmark.core.sequences.get_dna_sequence", lambda struct, chain_id: None
+                "biostructbenchmark.core.sequences.get_dna_sequence", lambda struct, chain_id: ""
             )
 
             matches = match_chains_by_similarity(exp_structure, comp_structure)
@@ -147,30 +168,25 @@ class TestSequenceIdentity:
 class TestChainClassification:
     """Test chain classification functionality"""
 
-    def create_mock_chain_with_residues(self, chain_id, residue_names):
-        """Create a mock chain with specified residue names"""
-        residues = []
-        for resname in residue_names:
-            residue = Mock()
-            residue.get_resname.return_value = resname
-            residues.append(residue)
-
-        chain = Mock()
-        chain.get_id.return_value = chain_id
-        chain.get_residues.return_value = residues
-        chain.__iter__ = lambda self: iter(residues)
-        return chain
-
     def test_classify_chains_protein_and_dna(self):
         """Test classification of mixed protein and DNA chains"""
-        # Create mixed structure
-        protein_chain = self.create_mock_chain_with_residues("A", ["ALA", "GLY", "VAL"])
-        dna_chain = self.create_mock_chain_with_residues("B", ["DA", "DT", "DG", "DC"])
+        # Create mixed structure with GEMMI-compatible mocks
+        protein_residues = [
+            create_mock_residue("ALA", 1),
+            create_mock_residue("GLY", 2),
+            create_mock_residue("VAL", 3),
+        ]
+        dna_residues = [
+            create_mock_residue("DA", 1),
+            create_mock_residue("DT", 2),
+            create_mock_residue("DG", 3),
+            create_mock_residue("DC", 4),
+        ]
 
-        structure = Mock()
-        model = Mock()
-        model.__iter__ = lambda self: iter([protein_chain, dna_chain])
-        structure.__iter__ = lambda self: iter([model])
+        protein_chain = create_mock_chain("A", protein_residues)
+        dna_chain = create_mock_chain("B", dna_residues)
+
+        structure = create_mock_structure([protein_chain, dna_chain])
 
         protein_chains, dna_chains = classify_chains(structure)
 
@@ -181,10 +197,7 @@ class TestChainClassification:
 
     def test_classify_chains_empty_structure(self):
         """Test classification of empty structure"""
-        structure = Mock()
-        model = Mock()
-        model.__iter__ = lambda self: iter([])
-        structure.__iter__ = lambda self: iter([model])
+        structure = create_mock_structure([])
 
         protein_chains, dna_chains = classify_chains(structure)
 

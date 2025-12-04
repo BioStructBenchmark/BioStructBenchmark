@@ -397,26 +397,29 @@ class TestEdgeCases:
 
         analyzer = BFactorAnalyzer()
 
-        # Create a mock structure with insertion codes
+        # Create a mock structure with insertion codes (GEMMI-compatible)
         structure = Mock()
         model = Mock()
         chain = Mock()
-        chain.get_id.return_value = "A"
+        chain.name = "A"
 
         # Create residues with insertion codes
         residues = []
-        for i, icode in [(42, " "), (42, "A"), (42, "B"), (43, " ")]:
+        for i, icode in [(42, ""), (42, "A"), (42, "B"), (43, "")]:
             residue = Mock()
-            residue.get_id.return_value = (" ", i, icode)
+            residue.seqid = Mock()
+            residue.seqid.num = i
+            residue.seqid.icode = icode
+            residue.het_flag = " "  # Standard residue
             atom = Mock()
-            atom.get_bfactor.return_value = 50.0 + len(residues)
+            atom.b_iso = 50.0 + len(residues)
             residue.__iter__ = Mock(return_value=iter([atom]))
             residues.append(residue)
 
         chain.__iter__ = Mock(return_value=iter(residues))
         model.__iter__ = Mock(return_value=iter([chain]))
-        model.get_models = Mock(return_value=iter([model]))
-        structure.get_models = Mock(return_value=iter([model]))
+        structure.__getitem__ = Mock(return_value=model)
+        structure.__len__ = Mock(return_value=1)
 
         bfactors = analyzer._extract_bfactors_from_structure(structure, filter_heteroatoms=False)
 
@@ -431,84 +434,67 @@ class TestEdgeCases:
         """Test that water and ligands are filtered out."""
         analyzer = BFactorAnalyzer()
 
-        # Create mix of standard residues and heteroatoms
-        residues = []
+        def create_mock_structure_with_heteroatoms():
+            """Create a mock structure with standard and heteroatom residues."""
+            residues = []
 
-        # Standard residue (hetflag = ' ')
-        std_res = Mock()
-        std_res.get_id.return_value = (" ", 1, " ")
-        atom1 = Mock()
-        atom1.get_bfactor.return_value = 30.0
-        std_res.__iter__ = Mock(return_value=iter([atom1]))
-        residues.append(std_res)
+            # Standard residue (het_flag = ' ')
+            std_res = Mock()
+            std_res.seqid = Mock()
+            std_res.seqid.num = 1
+            std_res.seqid.icode = ""
+            std_res.het_flag = " "
+            atom1 = Mock()
+            atom1.b_iso = 30.0
+            std_res.__iter__ = Mock(return_value=iter([atom1]))
+            residues.append(std_res)
 
-        # Water molecule (hetflag = 'W')
-        water = Mock()
-        water.get_id.return_value = ("W", 100, " ")
-        atom2 = Mock()
-        atom2.get_bfactor.return_value = 50.0
-        water.__iter__ = Mock(return_value=iter([atom2]))
-        residues.append(water)
+            # Water molecule (het_flag = 'H')
+            water = Mock()
+            water.seqid = Mock()
+            water.seqid.num = 100
+            water.seqid.icode = ""
+            water.het_flag = "H"
+            atom2 = Mock()
+            atom2.b_iso = 50.0
+            water.__iter__ = Mock(return_value=iter([atom2]))
+            residues.append(water)
 
-        # Ligand with hetflag H_LIG
-        ligand = Mock()
-        ligand.get_id.return_value = ("H_LIG", 200, " ")
-        atom3 = Mock()
-        atom3.get_bfactor.return_value = 40.0
-        ligand.__iter__ = Mock(return_value=iter([atom3]))
-        residues.append(ligand)
+            # Create ligand mock - also a HETATM (het_flag = 'H')
+            ligand = Mock()
+            ligand.seqid = Mock()
+            ligand.seqid.num = 200
+            ligand.seqid.icode = ""
+            ligand.het_flag = "H"
+            atom3 = Mock()
+            atom3.b_iso = 40.0
+            ligand.__iter__ = Mock(return_value=iter([atom3]))
+            residues.append(ligand)
 
-        # Build structure properly
-        chain = Mock()
-        chain.get_id.return_value = "A"
-        chain.__iter__ = Mock(return_value=iter(residues))
+            # Build structure
+            chain = Mock()
+            chain.name = "A"
+            chain.__iter__ = Mock(return_value=iter(residues))
 
-        model = Mock()
-        model.__iter__ = Mock(return_value=iter([chain]))
+            model = Mock()
+            model.__iter__ = Mock(return_value=iter([chain]))
 
-        structure = Mock()
-        structure.get_models.return_value = [model]
+            structure = Mock()
+            structure.__getitem__ = Mock(return_value=model)
+            structure.__len__ = Mock(return_value=1)
+
+            return structure
 
         # With filtering (default)
+        structure1 = create_mock_structure_with_heteroatoms()
         bfactors_filtered = analyzer._extract_bfactors_from_structure(
-            structure, filter_heteroatoms=True
+            structure1, filter_heteroatoms=True
         )
         assert len(bfactors_filtered) == 1  # Only standard residue
         assert "A_1" in bfactors_filtered
 
-        # Without filtering - need to rebuild residues list since we consumed it
-        residues2 = []
-        std_res2 = Mock()
-        std_res2.get_id.return_value = (" ", 1, " ")
-        atom1b = Mock()
-        atom1b.get_bfactor.return_value = 30.0
-        std_res2.__iter__ = Mock(return_value=iter([atom1b]))
-        residues2.append(std_res2)
-
-        water2 = Mock()
-        water2.get_id.return_value = ("W", 100, " ")
-        atom2b = Mock()
-        atom2b.get_bfactor.return_value = 50.0
-        water2.__iter__ = Mock(return_value=iter([atom2b]))
-        residues2.append(water2)
-
-        ligand2 = Mock()
-        ligand2.get_id.return_value = ("H_LIG", 200, " ")
-        atom3b = Mock()
-        atom3b.get_bfactor.return_value = 40.0
-        ligand2.__iter__ = Mock(return_value=iter([atom3b]))
-        residues2.append(ligand2)
-
-        chain2 = Mock()
-        chain2.get_id.return_value = "A"
-        chain2.__iter__ = Mock(return_value=iter(residues2))
-
-        model2 = Mock()
-        model2.__iter__ = Mock(return_value=iter([chain2]))
-
-        structure2 = Mock()
-        structure2.get_models.return_value = [model2]
-
+        # Without filtering
+        structure2 = create_mock_structure_with_heteroatoms()
         bfactors_all = analyzer._extract_bfactors_from_structure(
             structure2, filter_heteroatoms=False
         )

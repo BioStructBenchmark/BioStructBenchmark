@@ -233,14 +233,14 @@ class TestStructuralIntegration:
 
         for residue in list(exp_chain)[:5]:  # First 5 residues
             for atom in residue:
-                if atom.get_name() == "CA":  # Just CA atoms
-                    exp_coords.append(atom.get_coord())
+                if atom.name == "CA":  # Just CA atoms
+                    exp_coords.append([atom.pos.x, atom.pos.y, atom.pos.z])
                     break
 
         for residue in list(comp_chain)[:5]:  # First 5 residues
             for atom in residue:
-                if atom.get_name() == "CA":  # Just CA atoms
-                    comp_coords.append(atom.get_coord())
+                if atom.name == "CA":  # Just CA atoms
+                    comp_coords.append([atom.pos.x, atom.pos.y, atom.pos.z])
                     break
 
         if len(exp_coords) >= 3 and len(comp_coords) >= 3:

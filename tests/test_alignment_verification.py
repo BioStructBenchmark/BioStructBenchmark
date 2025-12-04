@@ -11,36 +11,40 @@ from biostructbenchmark.core.alignment import (
 )
 
 
-def create_mock_residue(resname, resnum, chain_id="A"):
-    """Create a mock residue with specified properties"""
+def create_mock_residue(resname, resnum):
+    """Create a mock residue with GEMMI-compatible interface."""
     residue = Mock()
-    residue.get_resname.return_value = resname
-    residue.get_id.return_value = (" ", resnum, " ")  # (hetflag, resnum, icode)
+    residue.name = resname
+    residue.seqid = Mock()
+    residue.seqid.num = resnum
+    residue.seqid.icode = ""
 
     # Mock atoms for the residue
     atom = Mock()
-    atom.get_name.return_value = "CA" if resname in ["ALA", "GLY", "VAL"] else "P"
-    atom.get_coord.return_value = [0.0, 0.0, 0.0]
-    residue.get_atoms.return_value = [atom]
+    atom.name = "CA" if resname in ["ALA", "GLY", "VAL"] else "P"
+    atom.pos = Mock()
+    atom.pos.x = 0.0
+    atom.pos.y = 0.0
+    atom.pos.z = 0.0
+    residue.__iter__ = Mock(return_value=iter([atom]))
 
     return residue
 
 
 def create_mock_chain(chain_id, residues):
-    """Create a mock chain with specified residues"""
+    """Create a mock chain with GEMMI-compatible interface."""
     chain = Mock()
-    chain.get_id.return_value = chain_id
-    chain.get_residues.return_value = residues
-    chain.__iter__ = lambda self: iter(residues)
+    chain.name = chain_id
+    chain.__iter__ = Mock(return_value=iter(residues))
     return chain
 
 
 def create_mock_structure(chains):
-    """Create a mock structure with specified chains"""
+    """Create a mock structure with GEMMI-compatible interface."""
     structure = Mock()
     model = Mock()
-    model.__iter__ = lambda self: iter(chains)
-    structure.__iter__ = lambda self: iter([model])
+    model.__iter__ = Mock(return_value=iter(chains))
+    structure.__iter__ = Mock(return_value=iter([model]))
     return structure
 
 
@@ -67,15 +71,7 @@ class TestProteinSequenceAlignment:
         exp_structure = create_mock_structure([chain_exp])
         comp_structure = create_mock_structure([chain_comp])
 
-        # Mock is_aa to return True for our test residues
-        with pytest.MonkeyPatch().context() as mp:
-            mp.setattr("biostructbenchmark.core.alignment.is_aa", lambda r, standard=True: True)
-            mp.setattr(
-                "biostructbenchmark.core.alignment.seq1",
-                lambda name: {"ALA": "A", "GLY": "G", "VAL": "V"}[name],
-            )
-
-            mapping = align_protein_sequences(exp_structure, comp_structure)
+        mapping = align_protein_sequences(exp_structure, comp_structure)
 
         # Should have 1:1 mapping for all residues
         expected_mapping = {
@@ -104,14 +100,7 @@ class TestProteinSequenceAlignment:
         exp_structure = create_mock_structure([chain_exp])
         comp_structure = create_mock_structure([chain_comp])
 
-        with pytest.MonkeyPatch().context() as mp:
-            mp.setattr("biostructbenchmark.core.alignment.is_aa", lambda r, standard=True: True)
-            mp.setattr(
-                "biostructbenchmark.core.alignment.seq1",
-                lambda name: {"ALA": "A", "GLY": "G", "VAL": "V"}[name],
-            )
-
-            mapping = align_protein_sequences(exp_structure, comp_structure)
+        mapping = align_protein_sequences(exp_structure, comp_structure)
 
         # Should map ALA->ALA and VAL->VAL, skip GLY
         expected_mapping = {
@@ -253,11 +242,7 @@ def test_alignment_quality_metrics():
     exp_structure = create_mock_structure([chain_exp])
     comp_structure = create_mock_structure([chain_comp])
 
-    with pytest.MonkeyPatch().context() as mp:
-        mp.setattr("biostructbenchmark.core.alignment.is_aa", lambda r, standard=True: True)
-        mp.setattr("biostructbenchmark.core.alignment.seq1", lambda name: "A")
-
-        mapping = align_protein_sequences(exp_structure, comp_structure)
+    mapping = align_protein_sequences(exp_structure, comp_structure)
 
     # Should have partial alignment (3 out of 5 residues aligned)
     assert len(mapping) == 3

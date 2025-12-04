@@ -8,14 +8,14 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+import gemmi
 import numpy as np
 from Bio.Align import PairwiseAligner
-from Bio.PDB import MMCIFIO, Structure
-from Bio.PDB.Polypeptide import is_aa
 from Bio.SeqUtils import seq1
 
 from .interface import INTERFACE_DISTANCE_THRESHOLD, find_interface_residues
 from .sequences import (
+    AMINO_ACIDS,
     DNA_NUCLEOTIDE_MAP,
     align_specific_dna_chains,
     align_specific_protein_chains,
@@ -27,6 +27,12 @@ from .structural import (
     calculate_per_residue_rmsd,
     superimpose_structures,
 )
+
+
+def _get_residue_id(residue: gemmi.Residue) -> tuple:
+    """Get residue ID tuple compatible with old BioPython format."""
+    icode = residue.seqid.icode if residue.seqid.icode else " "
+    return (" ", residue.seqid.num, icode)
 
 
 def create_output_directory_structure(base_output_dir: Path | None = None) -> Path:
@@ -57,8 +63,8 @@ def create_output_directory_structure(base_output_dir: Path | None = None) -> Pa
 
 
 def save_aligned_structures(
-    experimental_structure: Structure,
-    computational_structure: Structure,
+    experimental_structure: gemmi.Structure,
+    computational_structure: gemmi.Structure,
     rotation_matrix: np.ndarray,
     translation_vector: np.ndarray,
     run_dir: Path,
@@ -90,25 +96,20 @@ def save_aligned_structures(
         for chain in model:
             for residue in chain:
                 for atom in residue:
-                    coord = atom.get_coord()
+                    coord = np.array([atom.pos.x, atom.pos.y, atom.pos.z])
                     # Apply rotation and translation: new_coord = coord * R + t
                     transformed_coord = np.dot(coord, rotation_matrix) + translation_vector
-                    atom.set_coord(transformed_coord)
+                    atom.pos = gemmi.Position(
+                        transformed_coord[0], transformed_coord[1], transformed_coord[2]
+                    )
 
     # Determine output format and filenames
     exp_output_path = alignments_dir / f"{prefix}_experimental.cif"
     comp_output_path = alignments_dir / f"{prefix}_computational_aligned.cif"
 
-    # Save structures using MMCIF format
-    mmcif_io = MMCIFIO()
-
-    # Save experimental structure (reference)
-    mmcif_io.set_structure(exp_copy)
-    mmcif_io.save(str(exp_output_path))
-
-    # Save aligned computational structure
-    mmcif_io.set_structure(comp_copy)
-    mmcif_io.save(str(comp_output_path))
+    # Save structures using GEMMI's mmCIF writer
+    exp_copy.make_mmcif_document().write_file(str(exp_output_path))
+    comp_copy.make_mmcif_document().write_file(str(comp_output_path))
 
     return exp_output_path, comp_output_path
 
@@ -134,7 +135,7 @@ class AlignmentResult:
 
 
 def align_dna_sequences(  # type: ignore[no-untyped-def]
-    experimental_structure, computational_structure
+    experimental_structure: gemmi.Structure, computational_structure: gemmi.Structure
 ):
     """
     Align DNA sequences between experimental and computational structures
@@ -148,27 +149,27 @@ def align_dna_sequences(  # type: ignore[no-untyped-def]
     # Extract DNA sequences by chain
     exp_sequence_dict: dict[str, str] = {}  # Chain ID -> DNA sequence
     exp_residue_dict: dict[
-        str, list[tuple[str, str]]
+        str, list[tuple[tuple, str]]
     ] = {}  # Chain ID -> list of (residue_id, full_id)
     comp_sequence_dict: dict[str, str] = {}  # Chain ID -> DNA sequence
     comp_residue_dict: dict[
-        str, list[tuple[str, str]]
+        str, list[tuple[tuple, str]]
     ] = {}  # Chain ID -> list of (residue_id, full_id)
 
     # Process experimental structure
     for model in experimental_structure:
         for chain in model:
-            chain_id = chain.get_id()
+            chain_id = chain.name
             if chain_id not in exp_sequence_dict:
                 exp_sequence_dict[chain_id] = ""
                 exp_residue_dict[chain_id] = []
 
             # Sort nucleotides by ID for consistent processing
-            residues = sorted(chain.get_residues(), key=lambda r: r.get_id()[1])
+            residues = sorted(chain, key=lambda r: r.seqid.num)
 
             for residue in residues:
-                residue_id = residue.get_id()  # Full ID to preserve insertion codes
-                residue_name = residue.get_resname()
+                residue_id = _get_residue_id(residue)
+                residue_name = residue.name
 
                 if residue_name in DNA_NUCLEOTIDE_MAP:
                     # Map to single letter nucleotide code
@@ -180,17 +181,17 @@ def align_dna_sequences(  # type: ignore[no-untyped-def]
     # Process computational structure
     for model in computational_structure:
         for chain in model:
-            chain_id = chain.get_id()
+            chain_id = chain.name
             if chain_id not in comp_sequence_dict:
                 comp_sequence_dict[chain_id] = ""
                 comp_residue_dict[chain_id] = []
 
             # Sort nucleotides by ID for consistent processing
-            residues = sorted(chain.get_residues(), key=lambda r: r.get_id()[1])
+            residues = sorted(chain, key=lambda r: r.seqid.num)
 
             for residue in residues:
-                residue_id = residue.get_id()  # Full ID to preserve insertion codes
-                residue_name = residue.get_resname()
+                residue_id = _get_residue_id(residue)
+                residue_name = residue.name
 
                 if residue_name in DNA_NUCLEOTIDE_MAP:
                     # Map to single letter nucleotide code
@@ -260,7 +261,9 @@ def align_dna_sequences(  # type: ignore[no-untyped-def]
     return mapping, exp_sequence_dict, comp_sequence_dict
 
 
-def align_protein_sequences(exp_structure, comp_structure):  # type: ignore[no-untyped-def]
+def align_protein_sequences(
+    exp_structure: gemmi.Structure, comp_structure: gemmi.Structure
+) -> dict[str, str]:
     """
     Align protein sequences between experimental and computational structures
     and create a mapping between corresponding residues.
@@ -272,16 +275,16 @@ def align_protein_sequences(exp_structure, comp_structure):  # type: ignore[no-u
     # Extract sequences
     for model in exp_structure:
         for chain in model:
-            chain_id = chain.get_id()
-            residues = [r for r in chain if is_aa(r, standard=True)]
-            exp_seq = "".join(seq1(r.get_resname()) for r in residues)
+            chain_id = chain.name
+            residues = [r for r in chain if r.name in AMINO_ACIDS]
+            exp_seq = "".join(seq1(r.name) for r in residues)
             exp_sequence_dict[chain_id] = (exp_seq, residues)
 
     for model in comp_structure:
         for chain in model:
-            chain_id = chain.get_id()
-            residues = [r for r in chain if is_aa(r, standard=True)]
-            comp_seq = "".join(seq1(r.get_resname()) for r in residues)
+            chain_id = chain.name
+            residues = [r for r in chain if r.name in AMINO_ACIDS]
+            comp_seq = "".join(seq1(r.name) for r in residues)
             comp_sequence_dict[chain_id] = (comp_seq, residues)
 
     mapping = {}
@@ -318,8 +321,8 @@ def align_protein_sequences(exp_structure, comp_structure):  # type: ignore[no-u
         for i in range(len(exp_aligned)):
             if exp_aligned[i] != "-" and comp_aligned[i] != "-":
                 if exp_idx < len(exp_residues) and comp_idx < len(comp_residues):
-                    exp_full_id = f"{chain_id}:{exp_residues[exp_idx].get_id()}"
-                    comp_full_id = f"{chain_id}:{comp_residues[comp_idx].get_id()}"
+                    exp_full_id = f"{chain_id}:{_get_residue_id(exp_residues[exp_idx])}"
+                    comp_full_id = f"{chain_id}:{_get_residue_id(comp_residues[comp_idx])}"
                     mapping[exp_full_id] = comp_full_id
                 exp_idx += 1
                 comp_idx += 1
@@ -332,8 +335,8 @@ def align_protein_sequences(exp_structure, comp_structure):  # type: ignore[no-u
 
 
 def align_protein_dna_complex(
-    experimental_structure: Structure,
-    computational_structure: Structure,
+    experimental_structure: gemmi.Structure,
+    computational_structure: gemmi.Structure,
     interface_threshold: float = INTERFACE_DISTANCE_THRESHOLD,
     output_dir: Path | None = None,
     save_structures: bool = False,
@@ -420,18 +423,18 @@ def align_protein_dna_complex(
     # Process experimental structure
     for model in experimental_structure:
         for chain in model:
-            chain_id = chain.get_id()
+            chain_id = chain.name
             for residue in chain:
-                residue_id = f"{chain_id}:{residue.get_id()}"
+                residue_id = f"{chain_id}:{_get_residue_id(residue)}"
                 if residue_id in sequence_mapping:
                     exp_residues[residue_id] = residue
 
     # Process computational structure
     for model in computational_structure:
         for chain in model:
-            chain_id = chain.get_id()
+            chain_id = chain.name
             for residue in chain:
-                residue_id = f"{chain_id}:{residue.get_id()}"
+                residue_id = f"{chain_id}:{_get_residue_id(residue)}"
                 comp_residues[residue_id] = residue
 
     # Align atoms only for residues that exist in both structures
@@ -441,8 +444,8 @@ def align_protein_dna_complex(
             comp_residue = comp_residues[comp_residue_id]
 
             # Get atoms from both residues
-            exp_atoms = {atom.get_name(): atom for atom in exp_residue.get_atoms()}
-            comp_atoms = {atom.get_name(): atom for atom in comp_residue.get_atoms()}
+            exp_atoms = {atom.name: atom for atom in exp_residue}
+            comp_atoms = {atom.name: atom for atom in comp_residue}
 
             # Find common atoms
             common_atom_names = set(exp_atoms.keys()) & set(comp_atoms.keys())
@@ -453,8 +456,11 @@ def align_protein_dna_complex(
 
                 # Collect coordinates for common atoms in the same order
                 for atom_name in sorted(common_atom_names):
-                    exp_coord = exp_atoms[atom_name].get_coord()
-                    comp_coord = comp_atoms[atom_name].get_coord()
+                    exp_atom = exp_atoms[atom_name]
+                    comp_atom = comp_atoms[atom_name]
+
+                    exp_coord = [exp_atom.pos.x, exp_atom.pos.y, exp_atom.pos.z]
+                    comp_coord = [comp_atom.pos.x, comp_atom.pos.y, comp_atom.pos.z]
 
                     exp_atoms_for_alignment.append(exp_coord)
                     comp_atoms_for_alignment.append(comp_coord)

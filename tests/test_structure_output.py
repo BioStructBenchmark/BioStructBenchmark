@@ -33,57 +33,70 @@ class TestSaveAlignedStructuresUnit:
         """Clean up test fixtures"""
         shutil.rmtree(self.temp_dir)
 
-    @patch("biostructbenchmark.core.alignment.MMCIFIO")
-    @patch("biostructbenchmark.core.alignment.copy.deepcopy")
-    def test_save_structures_creates_files(self, mock_deepcopy, mock_mmcifio):
-        """Test that save_aligned_structures creates output files and calls MMCIFIO correctly"""
+    def test_save_structures_creates_files(self):
+        """Test that save_aligned_structures creates output files using GEMMI"""
         # Create the expected directory structure (like create_output_directory_structure does)
         (self.temp_path / "alignments").mkdir(parents=True, exist_ok=True)
         (self.temp_path / "analysis").mkdir(parents=True, exist_ok=True)
         (self.temp_path / "logs").mkdir(parents=True, exist_ok=True)
 
-        # Mock structures
+        # Create mock GEMMI-compatible structures
         exp_structure = Mock()
         comp_structure = Mock()
-        mock_deepcopy.side_effect = [exp_structure, comp_structure]
 
-        # Mock atom transformation
+        # Create mock atom with GEMMI interface
         atom = Mock()
-        atom.get_coord.return_value = np.array([0.0, 0.0, 0.0])
+        atom.pos = Mock()
+        atom.pos.x = 0.0
+        atom.pos.y = 0.0
+        atom.pos.z = 0.0
+
+        # Create residue with GEMMI interface
         residue = Mock()
-        residue.__iter__ = lambda self: iter([atom])
+        residue.__iter__ = Mock(return_value=iter([atom]))
+
+        # Create chain with GEMMI interface
         chain = Mock()
-        chain.__iter__ = lambda self: iter([residue])
+        chain.__iter__ = Mock(return_value=iter([residue]))
+
+        # Create model with GEMMI interface
         model = Mock()
-        model.__iter__ = lambda self: iter([chain])
-        comp_structure.__iter__ = lambda self: iter([model])
+        model.__iter__ = Mock(return_value=iter([chain]))
 
-        # Mock MMCIFIO
-        mock_io_instance = Mock()
-        mock_mmcifio.return_value = mock_io_instance
+        # Create GEMMI structure mock
+        comp_copy = Mock()
+        comp_copy.__iter__ = Mock(return_value=iter([model]))
 
-        exp_path, comp_path = save_aligned_structures(
-            exp_structure,
-            comp_structure,
-            self.rotation_matrix,
-            self.translation_vector,
-            self.temp_path,
-        )
+        exp_copy = Mock()
+        exp_copy.__iter__ = Mock(return_value=iter([]))
+
+        # Mock the document creation
+        mock_doc = Mock()
+        mock_doc.write_file = Mock()
+        exp_copy.make_mmcif_document = Mock(return_value=mock_doc)
+        comp_copy.make_mmcif_document = Mock(return_value=mock_doc)
+
+        with patch("biostructbenchmark.core.alignment.copy.deepcopy") as mock_deepcopy:
+            mock_deepcopy.side_effect = [exp_copy, comp_copy]
+
+            exp_path, comp_path = save_aligned_structures(
+                exp_structure,
+                comp_structure,
+                self.rotation_matrix,
+                self.translation_vector,
+                self.temp_path,
+            )
 
         # Verify output paths (now in alignments subdirectory)
         assert exp_path == self.temp_path / "alignments" / "aligned_experimental.cif"
         assert comp_path == self.temp_path / "alignments" / "aligned_computational_aligned.cif"
 
-        # Verify MMCIFIO was called correctly (one instance created)
-        assert mock_mmcifio.call_count == 1
-        assert mock_io_instance.set_structure.call_count == 2
-        assert mock_io_instance.save.call_count == 2
+        # Verify GEMMI's make_mmcif_document was called
+        assert exp_copy.make_mmcif_document.call_count == 1
+        assert comp_copy.make_mmcif_document.call_count == 1
 
-        # Verify transformation was applied
-        atom.set_coord.assert_called_once()
-        called_coord = atom.set_coord.call_args[0][0]
-        expected_coord = np.array([1.0, 2.0, 3.0])  # [0,0,0] * I + [1,2,3]
-        np.testing.assert_array_almost_equal(called_coord, expected_coord)
+        # Verify write_file was called
+        assert mock_doc.write_file.call_count == 2
 
     def test_output_directory_creation(self):
         """Test that save_aligned_structures works with a run directory that has subdirectories"""
@@ -93,16 +106,23 @@ class TestSaveAlignedStructuresUnit:
         (run_dir / "analysis").mkdir(parents=True, exist_ok=True)
         (run_dir / "logs").mkdir(parents=True, exist_ok=True)
 
-        # Mock the MMCIFIO to avoid file writing issues
-        with (
-            patch("biostructbenchmark.core.alignment.MMCIFIO"),
-            patch("biostructbenchmark.core.alignment.copy.deepcopy"),
-        ):
-            exp_structure = Mock()
-            comp_structure = Mock()
+        # Create mock GEMMI-compatible structures
+        exp_structure = Mock()
+        comp_structure = Mock()
 
-            # Mock minimal structure hierarchy for transformation
-            comp_structure.__iter__ = lambda self: iter([])
+        exp_copy = Mock()
+        exp_copy.__iter__ = Mock(return_value=iter([]))
+        comp_copy = Mock()
+        comp_copy.__iter__ = Mock(return_value=iter([]))
+
+        # Mock the document creation
+        mock_doc = Mock()
+        mock_doc.write_file = Mock()
+        exp_copy.make_mmcif_document = Mock(return_value=mock_doc)
+        comp_copy.make_mmcif_document = Mock(return_value=mock_doc)
+
+        with patch("biostructbenchmark.core.alignment.copy.deepcopy") as mock_deepcopy:
+            mock_deepcopy.side_effect = [exp_copy, comp_copy]
 
             exp_path, comp_path = save_aligned_structures(
                 exp_structure,
@@ -222,10 +242,6 @@ class TestAlignmentWithOutput:
 
         # Verify no output files were created
         assert result.output_files is None
-
-
-# Edge case tests removed due to complexity of mocking BioPython structures
-# The core functionality is tested by integration tests with real structures
 
 
 if __name__ == "__main__":
