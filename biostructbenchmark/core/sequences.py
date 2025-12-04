@@ -1,12 +1,11 @@
 """
-Sequence alignment and chain matching functionality
+Sequence alignment and chain matching functionality using SIMD-accelerated Parasail.
 """
 
 from dataclasses import dataclass
 
 import gemmi
-from Bio.Align import PairwiseAligner
-from Bio.SeqUtils import seq1
+import parasail
 
 # Define DNA nucleotide mapping
 DNA_NUCLEOTIDE_MAP = {
@@ -20,29 +19,32 @@ DNA_NUCLEOTIDE_MAP = {
     "C": "C",
 }
 
-# Standard amino acids (3-letter codes)
-AMINO_ACIDS = {
-    "ALA",
-    "ARG",
-    "ASN",
-    "ASP",
-    "CYS",
-    "GLN",
-    "GLU",
-    "GLY",
-    "HIS",
-    "ILE",
-    "LEU",
-    "LYS",
-    "MET",
-    "PHE",
-    "PRO",
-    "SER",
-    "THR",
-    "TRP",
-    "TYR",
-    "VAL",
+# Standard amino acids (3-letter to 1-letter mapping)
+AMINO_ACID_MAP = {
+    "ALA": "A",
+    "ARG": "R",
+    "ASN": "N",
+    "ASP": "D",
+    "CYS": "C",
+    "GLN": "Q",
+    "GLU": "E",
+    "GLY": "G",
+    "HIS": "H",
+    "ILE": "I",
+    "LEU": "L",
+    "LYS": "K",
+    "MET": "M",
+    "PHE": "F",
+    "PRO": "P",
+    "SER": "S",
+    "THR": "T",
+    "TRP": "W",
+    "TYR": "Y",
+    "VAL": "V",
 }
+
+# Set for fast lookup
+AMINO_ACIDS = set(AMINO_ACID_MAP.keys())
 
 
 def is_amino_acid(residue: gemmi.Residue) -> bool:
@@ -98,7 +100,7 @@ def get_protein_sequence(structure: gemmi.Structure, chain_id: str) -> str:
         for chain in model:
             if chain.name == chain_id:
                 residues = [r for r in chain if is_amino_acid(r)]
-                return "".join(seq1(r.name) for r in residues)
+                return "".join(AMINO_ACID_MAP.get(r.name, "X") for r in residues)
     return ""
 
 
@@ -117,32 +119,16 @@ def get_dna_sequence(structure: gemmi.Structure, chain_id: str) -> str:
 
 
 def calculate_sequence_identity(sequence1: str, sequence2: str) -> float:
-    """Calculate sequence identity between two sequences using pairwise alignment."""
+    """Calculate sequence identity between two sequences using SIMD-accelerated alignment."""
     if not sequence1 or not sequence2:
         return 0.0
 
-    aligner = PairwiseAligner()
-    # Default scoring equivalent to globalxx
-    aligner.match_score = 1
-    aligner.mismatch_score = 0
-    aligner.open_gap_score = 0
-    aligner.extend_gap_score = 0
+    # Use Parasail global alignment (Needleman-Wunsch)
+    # nw_stats returns matches directly, avoiding traceback overhead
+    result = parasail.nw_stats_striped_16(sequence1, sequence2, 0, 0, parasail.blosum62)
 
-    alignments = aligner.align(sequence1, sequence2)
-    if not alignments:
-        return 0.0
-
-    best_alignment = alignments[0]
-    alignment_str = str(best_alignment)
-    lines = alignment_str.strip().split("\n")
-    # Extract sequences from formatted alignment (3rd field after splitting by spaces)
-    aligned_seq1 = lines[0].split()[2] if len(lines) >= 1 and len(lines[0].split()) >= 3 else ""
-    aligned_seq2 = lines[2].split()[2] if len(lines) >= 3 and len(lines[2].split()) >= 3 else ""
-
-    matches = sum(1 for a, b in zip(aligned_seq1, aligned_seq2) if a == b and a != "-")
-    total_aligned = len(aligned_seq1)
-
-    return matches / total_aligned if total_aligned > 0 else 0.0
+    # Use parasail's built-in match counting
+    return result.matches / result.length if result.length > 0 else 0.0
 
 
 def match_chains_by_similarity(
@@ -267,27 +253,14 @@ def align_specific_protein_chains(
         return {}
 
     # Create sequences
-    exp_seq = "".join(seq1(r.name) for r in exp_residues)
-    comp_seq = "".join(seq1(r.name) for r in comp_residues)
+    exp_seq = "".join(AMINO_ACID_MAP.get(r.name, "X") for r in exp_residues)
+    comp_seq = "".join(AMINO_ACID_MAP.get(r.name, "X") for r in comp_residues)
 
-    # Align sequences
-    aligner = PairwiseAligner()
-    # Default scoring equivalent to globalxx
-    aligner.match_score = 1
-    aligner.mismatch_score = 0
-    aligner.open_gap_score = 0
-    aligner.extend_gap_score = 0
+    # Align sequences using Parasail (SIMD-accelerated)
+    result = parasail.nw_trace_striped_32(exp_seq, comp_seq, 1, 1, parasail.blosum62)
 
-    alignments = aligner.align(exp_seq, comp_seq)
-    if not alignments:
-        return {}
-
-    best = alignments[0]
-    alignment_str = str(best)
-    lines = alignment_str.strip().split("\n")
-    # Extract sequences from formatted alignment (3rd field after splitting by spaces)
-    exp_aligned = lines[0].split()[2] if len(lines) >= 1 and len(lines[0].split()) >= 3 else ""
-    comp_aligned = lines[2].split()[2] if len(lines) >= 3 and len(lines[2].split()) >= 3 else ""
+    exp_aligned = result.traceback.query
+    comp_aligned = result.traceback.ref
 
     # Create residue mapping
     mapping = {}
@@ -359,23 +332,12 @@ def align_specific_dna_chains(
     if not exp_seq or not comp_seq:
         return {}
 
-    # Align sequences using global alignment with match/mismatch scores
-    aligner = PairwiseAligner()
-    aligner.match_score = 2
-    aligner.mismatch_score = -1
-    aligner.open_gap_score = -1
-    aligner.extend_gap_score = -0.5
+    # Align sequences using Parasail (SIMD-accelerated)
+    dna_matrix = parasail.matrix_create("ACGT", 2, -1)
+    result = parasail.nw_trace_striped_32(exp_seq, comp_seq, 1, 1, dna_matrix)
 
-    alignments = aligner.align(exp_seq, comp_seq)
-    if not alignments:
-        return {}
-
-    best_alignment = alignments[0]
-    alignment_str = str(best_alignment)
-    lines = alignment_str.strip().split("\n")
-    # Extract sequences from formatted alignment (3rd field after splitting by spaces)
-    aligned_exp = lines[0].split()[2] if len(lines) >= 1 and len(lines[0].split()) >= 3 else ""
-    aligned_comp = lines[2].split()[2] if len(lines) >= 3 and len(lines[2].split()) >= 3 else ""
+    aligned_exp = result.traceback.query
+    aligned_comp = result.traceback.ref
 
     # Create residue mapping
     mapping = {}
