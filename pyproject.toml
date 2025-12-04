@@ -185,6 +185,12 @@ ignore_missing_imports = true
 # BioPython has incomplete type stubs - allow broader typing
 follow_imports = "skip"
 
+[[tool.mypy.overrides]]
+module = "parasail"
+ignore_missing_imports = true
+follow_imports = "skip"
+disable_error_code = "import-untyped"
+
 [tool.coverage.run]
 branch = true
 source = ["biostructbenchmark"]

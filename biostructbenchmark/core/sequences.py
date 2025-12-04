@@ -97,19 +97,27 @@ def classify_chains(structure: gemmi.Structure) -> tuple[list[str], list[str]]:
                 protein_chains.append(chain_id)
                 logger.debug(
                     "Chain %s classified as protein (%d protein, %d DNA residues)",
-                    chain_id, protein_residues, dna_residues
+                    chain_id,
+                    protein_residues,
+                    dna_residues,
                 )
             elif dna_residues > 0:
                 dna_chains.append(chain_id)
                 logger.debug(
                     "Chain %s classified as DNA (%d protein, %d DNA residues)",
-                    chain_id, protein_residues, dna_residues
+                    chain_id,
+                    protein_residues,
+                    dna_residues,
                 )
 
     elapsed = (time.perf_counter() - start_time) * 1000
     logger.debug(
         "Chain classification: %d protein chains %s, %d DNA chains %s in %.2f ms",
-        len(protein_chains), protein_chains, len(dna_chains), dna_chains, elapsed
+        len(protein_chains),
+        protein_chains,
+        len(dna_chains),
+        dna_chains,
+        elapsed,
     )
     return protein_chains, dna_chains
 
@@ -135,7 +143,7 @@ def get_dna_sequence(structure: gemmi.Structure, chain_id: str) -> str:
         for chain in model:
             if chain.name == chain_id:
                 # Sort by sequence number and build list (faster than string concat)
-                residues = sorted(chain, key=lambda r: r.seqid.num)
+                residues = sorted(chain, key=lambda r: r.seqid.num or 0)
                 chars = []
                 for residue in residues:
                     code = DNA_NUCLEOTIDE_MAP.get(residue.name)
@@ -196,7 +204,9 @@ def match_chains_by_similarity(
                 identity = calculate_sequence_identity(exp_seq, comp_seq)
                 logger.debug(
                     "Protein chain similarity: exp %s vs comp %s = %.1f%%",
-                    exp_chain_id, comp_chain_id, identity * 100
+                    exp_chain_id,
+                    comp_chain_id,
+                    identity * 100,
                 )
                 if identity > best_identity and identity > 0.3:  # Minimum 30% identity
                     best_match = comp_chain_id
@@ -215,7 +225,9 @@ def match_chains_by_similarity(
             )
             logger.debug(
                 "Matched protein chain %s -> %s (%.1f%% identity)",
-                exp_chain_id, best_match, best_identity * 100
+                exp_chain_id,
+                best_match,
+                best_identity * 100,
             )
 
     # Match DNA chains
@@ -233,7 +245,9 @@ def match_chains_by_similarity(
                 identity = calculate_sequence_identity(exp_seq, comp_seq)
                 logger.debug(
                     "DNA chain similarity: exp %s vs comp %s = %.1f%%",
-                    exp_chain_id, comp_chain_id, identity * 100
+                    exp_chain_id,
+                    comp_chain_id,
+                    identity * 100,
                 )
                 if identity > best_identity and identity > 0.5:  # Higher threshold for DNA
                     best_match = comp_chain_id
@@ -252,18 +266,17 @@ def match_chains_by_similarity(
             )
             logger.debug(
                 "Matched DNA chain %s -> %s (%.1f%% identity)",
-                exp_chain_id, best_match, best_identity * 100
+                exp_chain_id,
+                best_match,
+                best_identity * 100,
             )
 
     elapsed = (time.perf_counter() - start_time) * 1000
-    logger.debug(
-        "Chain matching complete: %d matches in %.2f ms",
-        len(chain_matches), elapsed
-    )
+    logger.debug("Chain matching complete: %d matches in %.2f ms", len(chain_matches), elapsed)
     return chain_matches
 
 
-def _get_residue_id(residue: gemmi.Residue) -> tuple:
+def _get_residue_id(residue: gemmi.Residue) -> tuple[str, int | None, str]:
     """Get residue ID tuple compatible with old BioPython format."""
     # BioPython format: (' ', resnum, icode)
     icode = residue.seqid.icode if residue.seqid.icode else " "
@@ -353,7 +366,7 @@ def align_specific_dna_chains(
     for model in exp_structure:
         for chain in model:
             if chain.name == exp_chain_id:
-                residues = sorted(chain, key=lambda r: r.seqid.num)
+                residues = sorted(chain, key=lambda r: r.seqid.num or 0)
                 exp_residues = [
                     (_get_residue_id(r), f"{exp_chain_id}:{_get_residue_id(r)}")
                     for r in residues
@@ -365,7 +378,7 @@ def align_specific_dna_chains(
     for model in comp_structure:
         for chain in model:
             if chain.name == comp_chain_id:
-                residues = sorted(chain, key=lambda r: r.seqid.num)
+                residues = sorted(chain, key=lambda r: r.seqid.num or 0)
                 comp_residues = [
                     (_get_residue_id(r), f"{comp_chain_id}:{_get_residue_id(r)}")
                     for r in residues

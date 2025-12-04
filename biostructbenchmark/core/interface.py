@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 INTERFACE_DISTANCE_THRESHOLD = 5.0
 
 
-def _get_residue_id(residue: gemmi.Residue) -> tuple:
+def _get_residue_id(residue: gemmi.Residue) -> tuple[str, int | None, str]:
     """Get residue ID tuple compatible with old BioPython format."""
     icode = residue.seqid.icode if residue.seqid.icode else " "
     return (" ", residue.seqid.num, icode)
@@ -45,7 +45,9 @@ def find_interface_residues(
     start_time = time.perf_counter()
     logger.debug(
         "Finding interface residues: protein chains %s, DNA chains %s, threshold %.1f Å",
-        protein_chains, dna_chains, threshold
+        protein_chains,
+        dna_chains,
+        threshold,
     )
 
     interface_residues: dict[str, list[str]] = {}
@@ -106,7 +108,6 @@ def find_interface_residues(
     total_interface = sum(len(v) for v in interface_residues.values())
     elapsed = (time.perf_counter() - start_time) * 1000
     logger.debug(
-        "Interface detection complete: %d residues found in %.2f ms",
-        total_interface, elapsed
+        "Interface detection complete: %d residues found in %.2f ms", total_interface, elapsed
     )
     return interface_residues

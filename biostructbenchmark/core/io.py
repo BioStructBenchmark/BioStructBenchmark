@@ -37,7 +37,9 @@ def get_structure(file_path: Path) -> gemmi.Structure | None:
 
     ftype = file_type(file_path)
     if ftype not in SUPPORTED_EXTENSIONS:
-        logger.warning("Unsupported file extension: %s (supported: %s)", ftype, SUPPORTED_EXTENSIONS)
+        logger.warning(
+            "Unsupported file extension: %s (supported: %s)", ftype, SUPPORTED_EXTENSIONS
+        )
         return None
 
     try:
@@ -68,7 +70,11 @@ def get_structure(file_path: Path) -> gemmi.Structure | None:
 
         logger.debug(
             "Parsed %s: %d chains, %d residues, %d atoms in %.2f ms",
-            file_path.name, chain_count, residue_count, atom_count, parse_time
+            file_path.name,
+            chain_count,
+            residue_count,
+            atom_count,
+            parse_time,
         )
         return structure
     except Exception as e:

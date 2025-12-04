@@ -14,8 +14,6 @@ import gemmi
 import numpy as np
 import parasail
 
-logger = logging.getLogger(__name__)
-
 from .interface import INTERFACE_DISTANCE_THRESHOLD, find_interface_residues
 from .sequences import (
     AMINO_ACID_MAP,
@@ -32,8 +30,10 @@ from .structural import (
     superimpose_structures,
 )
 
+logger = logging.getLogger(__name__)
 
-def _get_residue_id(residue: gemmi.Residue) -> tuple:
+
+def _get_residue_id(residue: gemmi.Residue) -> tuple[str, int | None, str]:
     """Get residue ID tuple compatible with old BioPython format."""
     icode = residue.seqid.icode if residue.seqid.icode else " "
     return (" ", residue.seqid.num, icode)
@@ -153,11 +153,11 @@ def align_dna_sequences(  # type: ignore[no-untyped-def]
     # Extract DNA sequences by chain
     exp_sequence_dict: dict[str, str] = {}  # Chain ID -> DNA sequence
     exp_residue_dict: dict[
-        str, list[tuple[tuple, str]]
+        str, list[tuple[tuple[str, int | None, str], str]]
     ] = {}  # Chain ID -> list of (residue_id, full_id)
     comp_sequence_dict: dict[str, str] = {}  # Chain ID -> DNA sequence
     comp_residue_dict: dict[
-        str, list[tuple[tuple, str]]
+        str, list[tuple[tuple[str, int | None, str], str]]
     ] = {}  # Chain ID -> list of (residue_id, full_id)
 
     # Process experimental structure
@@ -169,7 +169,7 @@ def align_dna_sequences(  # type: ignore[no-untyped-def]
                 exp_residue_dict[chain_id] = []
 
             # Sort nucleotides by ID for consistent processing
-            residues = sorted(chain, key=lambda r: r.seqid.num)
+            residues = sorted(chain, key=lambda r: r.seqid.num or 0)
 
             for residue in residues:
                 residue_id = _get_residue_id(residue)
@@ -191,7 +191,7 @@ def align_dna_sequences(  # type: ignore[no-untyped-def]
                 comp_residue_dict[chain_id] = []
 
             # Sort nucleotides by ID for consistent processing
-            residues = sorted(chain, key=lambda r: r.seqid.num)
+            residues = sorted(chain, key=lambda r: r.seqid.num or 0)
 
             for residue in residues:
                 residue_id = _get_residue_id(residue)
@@ -444,12 +444,8 @@ def align_protein_dna_complex(
                     exp_atom = exp_atoms[atom_name]
                     comp_atom = comp_atoms[atom_name]
 
-                    exp_residue_coords.append(
-                        (exp_atom.pos.x, exp_atom.pos.y, exp_atom.pos.z)
-                    )
-                    comp_residue_coords.append(
-                        (comp_atom.pos.x, comp_atom.pos.y, comp_atom.pos.z)
-                    )
+                    exp_residue_coords.append((exp_atom.pos.x, exp_atom.pos.y, exp_atom.pos.z))
+                    comp_residue_coords.append((comp_atom.pos.x, comp_atom.pos.y, comp_atom.pos.z))
 
                 exp_atoms_for_alignment.extend(exp_residue_coords)
                 comp_atoms_for_alignment.extend(comp_residue_coords)
@@ -538,8 +534,10 @@ def align_protein_dna_complex(
     total_elapsed = (time.perf_counter() - total_start) * 1000
     logger.debug(
         "Alignment complete in %.2f ms: RMSD=%.3f Å, %d residues mapped, %d interface residues",
-        total_elapsed, structural_rmsd, len(sequence_mapping),
-        sum(len(v) for v in interface_residues.values())
+        total_elapsed,
+        structural_rmsd,
+        len(sequence_mapping),
+        sum(len(v) for v in interface_residues.values()),
     )
 
     return AlignmentResult(
