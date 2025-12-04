@@ -5,6 +5,7 @@ Tests for protein-DNA complex alignment functionality
 from unittest.mock import Mock, patch
 
 import numpy as np
+import pytest
 from biostructbenchmark.core.alignment import AlignmentResult, align_protein_dna_complex
 from biostructbenchmark.core.interface import find_interface_residues
 from biostructbenchmark.core.sequences import (
@@ -178,41 +179,29 @@ class TestPerResidueRMSD:
 class TestInterfaceDetection:
     """Test protein-DNA interface detection."""
 
-    def test_find_interface_residues_mock(self):
-        """Test interface residue detection with mock structures."""
-        # Create protein atom
-        prot_atom = Mock()
-        prot_atom.pos = Mock()
-        prot_atom.pos.x = 0.0
-        prot_atom.pos.y = 0.0
-        prot_atom.pos.z = 0.0
+    @pytest.mark.integration
+    def test_find_interface_residues_real_structure(self):
+        """Test interface residue detection with real protein-DNA complex.
 
-        # Create DNA atom close to protein atom
-        dna_atom = Mock()
-        dna_atom.pos = Mock()
-        dna_atom.pos.x = 3.0
-        dna_atom.pos.y = 0.0
-        dna_atom.pos.z = 0.0
+        NeighborSearch requires real GEMMI structures for spatial indexing.
+        """
+        from pathlib import Path
 
-        # Create protein residue
-        prot_residue = create_mock_residue("ALA", 1)
-        prot_residue.__iter__ = Mock(return_value=iter([prot_atom]))
+        from biostructbenchmark.core.io import get_structure
 
-        # Create DNA residue
-        dna_residue = create_mock_residue("DA", 1)
-        dna_residue.__iter__ = Mock(return_value=iter([dna_atom]))
+        # Load real protein-DNA complex (9ny8 has protein chains A,B and DNA chains C,D)
+        structure = get_structure(Path("tests/data/complexes/experimental_9ny8.cif"))
+        interface_residues = find_interface_residues(structure, ["A", "B"], ["C", "D"], 5.0)
 
-        # Create chains
-        prot_chain = create_mock_chain("A", [prot_residue])
-        dna_chain = create_mock_chain("B", [dna_residue])
-
-        # Create structure
-        structure = create_mock_structure([prot_chain, dna_chain])
-
-        interface_residues = find_interface_residues(structure, ["A"], ["B"], 5.0)
-
+        # Should find interface residues in all chains
         assert "A" in interface_residues
         assert "B" in interface_residues
+        assert "C" in interface_residues
+        assert "D" in interface_residues
+
+        # Should find at least some interface residues (protein-DNA complex should have interface)
+        total_interface = sum(len(v) for v in interface_residues.values())
+        assert total_interface > 0, "Should find interface residues in protein-DNA complex"
 
 
 class TestChainMatching:

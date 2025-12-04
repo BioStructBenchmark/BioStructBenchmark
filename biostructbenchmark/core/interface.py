@@ -1,8 +1,6 @@
 """
-Protein-DNA interface detection and analysis
+Protein-DNA interface detection and analysis using GEMMI's spatial indexing.
 """
-
-import math
 
 import gemmi
 
@@ -18,15 +16,6 @@ def _get_residue_id(residue: gemmi.Residue) -> tuple:
     return (" ", residue.seqid.num, icode)
 
 
-def _calculate_distance(atom1: gemmi.Atom, atom2: gemmi.Atom) -> float:
-    """Calculate Euclidean distance between two atoms."""
-    return math.sqrt(
-        (atom1.pos.x - atom2.pos.x) ** 2
-        + (atom1.pos.y - atom2.pos.y) ** 2
-        + (atom1.pos.z - atom2.pos.z) ** 2
-    )
-
-
 def find_interface_residues(
     structure: gemmi.Structure,
     protein_chains: list[str],
@@ -34,7 +23,10 @@ def find_interface_residues(
     threshold: float = INTERFACE_DISTANCE_THRESHOLD,
 ) -> dict[str, list[str]]:
     """
-    Find residues at the protein-DNA interface.
+    Find residues at the protein-DNA interface using spatial indexing.
+
+    Uses GEMMI's NeighborSearch for O(n log n) performance instead of O(n²)
+    pairwise distance calculations.
 
     Args:
         structure: GEMMI structure
@@ -46,41 +38,55 @@ def find_interface_residues(
         Dict mapping chain_id to list of interface residue IDs
     """
     interface_residues: dict[str, list[str]] = {}
+    protein_chain_set = set(protein_chains)
+    dna_chain_set = set(dna_chains)
 
     for model in structure:
-        # Get all protein and DNA atoms
-        protein_atoms = []
-        dna_atoms = []
-
-        for chain in model:
-            chain_id = chain.name
-            if chain_id in protein_chains:
-                for residue in chain:
-                    if residue.name in AMINO_ACIDS:
-                        protein_atoms.extend(
-                            [(atom, chain_id, _get_residue_id(residue)) for atom in residue]
-                        )
-            elif chain_id in dna_chains:
-                for residue in chain:
-                    if residue.name in DNA_NUCLEOTIDE_MAP:
-                        dna_atoms.extend(
-                            [(atom, chain_id, _get_residue_id(residue)) for atom in residue]
-                        )
-
-        # Find interface residues
+        # Initialize result dict
         for chain_id in protein_chains + dna_chains:
             interface_residues[chain_id] = []
 
-        # Check distances between protein and DNA atoms
-        for prot_atom, prot_chain, prot_res in protein_atoms:
-            for dna_atom, dna_chain, dna_res in dna_atoms:
-                distance = _calculate_distance(prot_atom, dna_atom)
-                if distance <= threshold:
-                    prot_res_id = f"{prot_chain}:{prot_res}"
-                    dna_res_id = f"{dna_chain}:{dna_res}"
-                    if prot_res_id not in interface_residues[prot_chain]:
-                        interface_residues[prot_chain].append(prot_res_id)
-                    if dna_res_id not in interface_residues[dna_chain]:
-                        interface_residues[dna_chain].append(dna_res_id)
+        # Build spatial index without periodic boundary conditions
+        # Using an empty UnitCell disables PBC (we want real distances, not crystal contacts)
+        ns = gemmi.NeighborSearch(model, gemmi.UnitCell(), threshold).populate()
+
+        # Track which residues we've already added (use set for O(1) lookup)
+        seen_residues: set[str] = set()
+
+        # For each DNA atom, find nearby protein atoms
+        for chain in model:
+            if chain.name not in dna_chain_set:
+                continue
+
+            for residue in chain:
+                if residue.name not in DNA_NUCLEOTIDE_MAP:
+                    continue
+
+                dna_res_id = f"{chain.name}:{_get_residue_id(residue)}"
+
+                for atom in residue:
+                    # Find all atoms within threshold distance
+                    for mark in ns.find_atoms(atom.pos, radius=threshold):
+                        cra = mark.to_cra(model)
+                        neighbor_chain = cra.chain.name
+
+                        # Only care about protein neighbors
+                        if neighbor_chain not in protein_chain_set:
+                            continue
+
+                        neighbor_residue = cra.residue
+                        if neighbor_residue.name not in AMINO_ACIDS:
+                            continue
+
+                        # Add protein residue to interface
+                        prot_res_id = f"{neighbor_chain}:{_get_residue_id(neighbor_residue)}"
+                        if prot_res_id not in seen_residues:
+                            seen_residues.add(prot_res_id)
+                            interface_residues[neighbor_chain].append(prot_res_id)
+
+                        # Add DNA residue to interface
+                        if dna_res_id not in seen_residues:
+                            seen_residues.add(dna_res_id)
+                            interface_residues[chain.name].append(dna_res_id)
 
     return interface_residues
