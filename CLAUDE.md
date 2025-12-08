@@ -29,20 +29,42 @@ source .venv/bin/activate
 ### Testing
 - Always create Pytest unit tests for new features (functions, classes, etc).
 - Tests live in `tests/`
+- Coverage threshold: 80%
 ```bash
-uv run pytest                    # Run all tests
+uv run pytest                    # Run all tests with coverage
 uv run pytest tests/test_io.py   # Run specific test file
 ```
 
-### Linting and Formatting
+### Linting, Formatting, and Type Checking
 ```bash
-uv run black .                   # Format code
-uv run pylint biostructbenchmark # Lint code
+uv run ruff format .              # Format code
+uv run ruff check .               # Lint code
+uv run ruff check --fix .         # Lint and auto-fix
+uv run mypy biostructbenchmark/   # Type check
+```
+
+### Security Scanning
+```bash
+uv run bandit -r biostructbenchmark/  # SAST security scan
+uv run pip-audit                      # Dependency vulnerabilities
+```
+
+### Development Workflow (Makefile)
+```bash
+make help       # Show available commands
+make dev        # Install dev dependencies and setup pre-commit
+make format     # Format code and auto-fix
+make lint       # Run linting checks
+make typecheck  # Run type checking
+make test       # Run tests with coverage
+make security   # Run security scans
+make check      # Run all checks (lint, typecheck, test, security)
+make clean      # Clean generated files
 ```
 
 ### Building and Distribution
 ```bash
-uv build                 # Build package
+uv build                        # Build package
 uv run twine upload dist/*      # Upload to PyPI
 ```
 

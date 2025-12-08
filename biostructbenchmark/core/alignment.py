@@ -2,41 +2,40 @@
 Streamlined protein-DNA complex alignment module
 """
 
-from pathlib import Path
-import numpy as np
+import copy
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
+from typing import Any
 
+import numpy as np
 from Bio.Align import PairwiseAligner
+from Bio.PDB import MMCIFIO, Structure
 from Bio.PDB.Polypeptide import is_aa
 from Bio.SeqUtils import seq1
-from Bio.PDB import Structure, PDBIO, MMCIFIO
-import copy
 
-from .structural import (
-    superimpose_structures,
-    calculate_per_residue_rmsd,
-    calculate_orientation_error,
-)
+from .interface import INTERFACE_DISTANCE_THRESHOLD, find_interface_residues
 from .sequences import (
+    DNA_NUCLEOTIDE_MAP,
+    align_specific_dna_chains,
+    align_specific_protein_chains,
     classify_chains,
     match_chains_by_similarity,
-    align_specific_protein_chains,
-    align_specific_dna_chains,
-    get_protein_sequence,
-    get_dna_sequence,
-    DNA_NUCLEOTIDE_MAP,
-    ChainMatch,
 )
-from .interface import find_interface_residues, INTERFACE_DISTANCE_THRESHOLD
+from .structural import (
+    calculate_orientation_error,
+    calculate_per_residue_rmsd,
+    superimpose_structures,
+)
+
 
 def create_output_directory_structure(base_output_dir: Path | None = None) -> Path:
     """
     Create standardized output directory structure with timestamped subdirectory.
-    
+
     Args:
         base_output_dir: Base directory for outputs (default: ./results)
-        
+
     Returns:
         Path to the timestamped run directory
     """
@@ -44,16 +43,16 @@ def create_output_directory_structure(base_output_dir: Path | None = None) -> Pa
         base_output_dir = Path.cwd() / "results"
     else:
         base_output_dir = Path(base_output_dir)
-    
+
     # Create timestamped subdirectory
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     run_dir = base_output_dir / f"biostructbenchmark_{timestamp}"
-    
+
     # Create subdirectories
     (run_dir / "alignments").mkdir(parents=True, exist_ok=True)
     (run_dir / "analysis").mkdir(parents=True, exist_ok=True)
     (run_dir / "logs").mkdir(parents=True, exist_ok=True)
-    
+
     return run_dir
 
 
@@ -63,11 +62,11 @@ def save_aligned_structures(
     rotation_matrix: np.ndarray,
     translation_vector: np.ndarray,
     run_dir: Path,
-    prefix: str = "aligned"
+    prefix: str = "aligned",
 ) -> tuple[Path, Path]:
     """
     Save aligned structures to output files in the alignments subdirectory.
-    
+
     Args:
         experimental_structure: Reference structure (unchanged)
         computational_structure: Structure to be transformed and saved
@@ -75,17 +74,17 @@ def save_aligned_structures(
         translation_vector: Translation vector from superimposition
         run_dir: Timestamped run directory containing subdirectories
         prefix: Prefix for output filenames
-        
+
     Returns:
         tuple: (experimental_output_path, computational_output_path)
     """
     # Use the alignments subdirectory
     alignments_dir = run_dir / "alignments"
-    
+
     # Deep copy structures to avoid modifying originals
     exp_copy = copy.deepcopy(experimental_structure)
     comp_copy = copy.deepcopy(computational_structure)
-    
+
     # Apply transformation to computational structure
     for model in comp_copy:
         for chain in model:
@@ -95,22 +94,22 @@ def save_aligned_structures(
                     # Apply rotation and translation: new_coord = coord * R + t
                     transformed_coord = np.dot(coord, rotation_matrix) + translation_vector
                     atom.set_coord(transformed_coord)
-    
+
     # Determine output format and filenames
     exp_output_path = alignments_dir / f"{prefix}_experimental.cif"
     comp_output_path = alignments_dir / f"{prefix}_computational_aligned.cif"
-    
+
     # Save structures using MMCIF format
     mmcif_io = MMCIFIO()
-    
+
     # Save experimental structure (reference)
     mmcif_io.set_structure(exp_copy)
     mmcif_io.save(str(exp_output_path))
-    
+
     # Save aligned computational structure
     mmcif_io.set_structure(comp_copy)
     mmcif_io.save(str(comp_output_path))
-    
+
     return exp_output_path, comp_output_path
 
 
@@ -134,7 +133,9 @@ class AlignmentResult:
     output_files: tuple[Path, Path] | None = None  # (experimental_path, computational_aligned_path)
 
 
-def align_dna_sequences(experimental_structure, computational_structure):
+def align_dna_sequences(  # type: ignore[no-untyped-def]
+    experimental_structure, computational_structure
+):
     """
     Align DNA sequences between experimental and computational structures
     and create a mapping between corresponding nucleotides.
@@ -145,10 +146,14 @@ def align_dna_sequences(experimental_structure, computational_structure):
         comp_sequence_dict: Dictionary of computational DNA sequences by chain
     """
     # Extract DNA sequences by chain
-    exp_sequence_dict = {}  # Chain ID -> DNA sequence
-    exp_residue_dict = {}  # Chain ID -> list of (residue_id, full_id) tuples
-    comp_sequence_dict = {}  # Chain ID -> DNA sequence
-    comp_residue_dict = {}  # Chain ID -> list of (residue_id, full_id) tuples
+    exp_sequence_dict: dict[str, str] = {}  # Chain ID -> DNA sequence
+    exp_residue_dict: dict[
+        str, list[tuple[str, str]]
+    ] = {}  # Chain ID -> list of (residue_id, full_id)
+    comp_sequence_dict: dict[str, str] = {}  # Chain ID -> DNA sequence
+    comp_residue_dict: dict[
+        str, list[tuple[str, str]]
+    ] = {}  # Chain ID -> list of (residue_id, full_id)
 
     # Process experimental structure
     for model in experimental_structure:
@@ -170,9 +175,7 @@ def align_dna_sequences(experimental_structure, computational_structure):
                     nuc = DNA_NUCLEOTIDE_MAP.get(residue_name)
                     if nuc:
                         exp_sequence_dict[chain_id] += nuc
-                        exp_residue_dict[chain_id].append(
-                            (residue_id, f"{chain_id}:{residue_id}")
-                        )
+                        exp_residue_dict[chain_id].append((residue_id, f"{chain_id}:{residue_id}"))
 
     # Process computational structure
     for model in computational_structure:
@@ -194,9 +197,7 @@ def align_dna_sequences(experimental_structure, computational_structure):
                     nuc = DNA_NUCLEOTIDE_MAP.get(residue_name)
                     if nuc:
                         comp_sequence_dict[chain_id] += nuc
-                        comp_residue_dict[chain_id].append(
-                            (residue_id, f"{chain_id}:{residue_id}")
-                        )
+                        comp_residue_dict[chain_id].append((residue_id, f"{chain_id}:{residue_id}"))
 
     # Create mapping between experimental and computational nucleotides
     mapping = {}
@@ -219,14 +220,14 @@ def align_dna_sequences(experimental_structure, computational_structure):
         aligner.mismatch_score = -1
         aligner.open_gap_score = -1
         aligner.extend_gap_score = -0.5
-        
+
         alignments = aligner.align(exp_sequence, comp_sequence)
         if not alignments:
             continue
 
         best_alignment = alignments[0]
         alignment_str = str(best_alignment)
-        lines = alignment_str.strip().split('\n')
+        lines = alignment_str.strip().split("\n")
         # Extract sequences from formatted alignment (3rd field after splitting by spaces)
         aligned_exp = lines[0].split()[2] if len(lines) >= 1 and len(lines[0].split()) >= 3 else ""
         aligned_comp = lines[2].split()[2] if len(lines) >= 3 and len(lines[2].split()) >= 3 else ""
@@ -259,14 +260,14 @@ def align_dna_sequences(experimental_structure, computational_structure):
     return mapping, exp_sequence_dict, comp_sequence_dict
 
 
-def align_protein_sequences(exp_structure, comp_structure):
+def align_protein_sequences(exp_structure, comp_structure):  # type: ignore[no-untyped-def]
     """
     Align protein sequences between experimental and computational structures
     and create a mapping between corresponding residues.
     Returns: mapping (experimental_full_id -> computational_full_id)
     """
-    exp_sequence_dict = {}  # chain_id -> (sequence, residues)
-    comp_sequence_dict = {}
+    exp_sequence_dict: dict[str, tuple[str, list[Any]]] = {}  # chain_id -> (sequence, residues)
+    comp_sequence_dict: dict[str, tuple[str, list[Any]]] = {}
 
     # Extract sequences
     for model in exp_structure:
@@ -300,14 +301,14 @@ def align_protein_sequences(exp_structure, comp_structure):
         aligner.mismatch_score = 0
         aligner.open_gap_score = 0
         aligner.extend_gap_score = 0
-        
+
         alignments = aligner.align(exp_seq, comp_seq)
         if not alignments:
             continue
 
         best = alignments[0]
         alignment_str = str(best)
-        lines = alignment_str.strip().split('\n')
+        lines = alignment_str.strip().split("\n")
         # Extract sequences from formatted alignment (3rd field after splitting by spaces)
         exp_aligned = lines[0].split()[2] if len(lines) >= 1 and len(lines[0].split()) >= 3 else ""
         comp_aligned = lines[2].split()[2] if len(lines) >= 3 and len(lines[2].split()) >= 3 else ""
@@ -355,17 +356,15 @@ def align_protein_dna_complex(
 
     Returns:
         AlignmentResult containing comprehensive alignment data
-        
+
     TODO: Implement summary.json generation with run metadata
     """
     # Classify chains and find best matches between structures
     exp_prot_chains, exp_dna_chains = classify_chains(experimental_structure)
-    comp_prot_chains, comp_dna_chains = classify_chains(computational_structure)
+    _comp_prot_chains, _comp_dna_chains = classify_chains(computational_structure)
 
     # Match chains based on sequence similarity
-    chain_matches = match_chains_by_similarity(
-        experimental_structure, computational_structure
-    )
+    chain_matches = match_chains_by_similarity(experimental_structure, computational_structure)
 
     # Create mapping based on matched chains
     sequence_mapping = {}
@@ -539,20 +538,20 @@ def align_protein_dna_complex(
             computational_structure,
             rotation_matrix,
             translation_vector,
-            run_dir
+            run_dir,
         )
 
     return AlignmentResult(
         sequence_mapping=sequence_mapping,
         structural_rmsd=structural_rmsd,
         per_residue_rmsd=per_residue_rmsd,
-        protein_rmsd=protein_rmsd,
-        dna_rmsd=dna_rmsd,
-        interface_rmsd=interface_rmsd,
+        protein_rmsd=float(protein_rmsd),
+        dna_rmsd=float(dna_rmsd),
+        interface_rmsd=float(interface_rmsd),
         rotation_matrix=rotation_matrix,
         translation_vector=translation_vector,
         orientation_error=orientation_error,
-        translational_error=translational_error,
+        translational_error=float(translational_error),
         protein_chains=exp_prot_chains,
         dna_chains=exp_dna_chains,
         interface_residues=interface_residues,
