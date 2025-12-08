@@ -1,0 +1,48 @@
+# Pin to commit SHAs for supply chain security
+# To update: verify new SHA, then update both rev and comment
+repos:
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: cef0300fd0fc4d2a87a85fa2093c6b283ea36f4b  # v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: \.(pdb|cif)$
+      - id: end-of-file-fixer
+        exclude: \.(pdb|cif)$
+      - id: check-yaml
+      - id: check-toml
+      - id: check-ast
+      - id: detect-private-key
+      - id: debug-statements
+      - id: check-merge-conflict
+
+  # Ruff linting and formatting
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: f0b5944bef86f50d875305821a0ab0d8c601e465  # v0.8.4
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  # Type checking
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: f56614daa94d5cd733d3b7004c5df9caad267b4a  # v1.13.0
+    hooks:
+      - id: mypy
+        args: [--strict, --show-error-codes, --ignore-missing-imports]
+        exclude: ^(tests|scripts)/
+
+  # Security scanning
+  - repo: https://github.com/PyCQA/bandit
+    rev: 8fd258abbac759d62863779f946d6a88e8eabb0f  # 1.8.0
+    hooks:
+      - id: bandit
+        args: [-c, pyproject.toml]
+        exclude: ^tests/
+
+  # GitHub Actions security scanning
+  - repo: https://github.com/zizmorcore/zizmor-pre-commit
+    rev: d2c1833a059c66713cd52c032617766134679a0f  # v1.9.0
+    hooks:
+      - id: zizmor
+        files: ^\.github/.*\.ya?ml$

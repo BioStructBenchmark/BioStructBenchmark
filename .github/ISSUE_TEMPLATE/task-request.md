@@ -8,9 +8,9 @@ assignees: ''
 ---
 
 **Sub-tasks to be completed:**
-- 
-- 
-- 
+-
+-
+-
 
 **Definition of Done:**
 A clear test that the Task is complete.

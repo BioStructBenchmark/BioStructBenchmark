@@ -1,12 +1,12 @@
 """Tests for B-factor analysis functionality."""
 
-import pytest
-import numpy as np
-import pandas as pd
-from pathlib import Path
 import tempfile
+from pathlib import Path
 from unittest.mock import Mock
 
+import numpy as np
+import pandas as pd
+import pytest
 from biostructbenchmark.analysis.bfactor import (
     BFactorAnalyzer,
     BFactorComparison,
@@ -27,7 +27,7 @@ class TestBFactorDataClasses:
             experimental_bfactor=25.5,
             predicted_confidence=85.3,
             difference=59.8,
-            normalized_bfactor=1.2
+            normalized_bfactor=1.2,
         )
 
         assert comparison.residue_id == "A_42"
@@ -46,7 +46,7 @@ class TestBFactorDataClasses:
             correlation=0.65,
             rmsd=15.3,
             high_confidence_accuracy=10.5,
-            low_confidence_accuracy=22.8
+            low_confidence_accuracy=22.8,
         )
 
         assert stats.mean_experimental == 30.5
@@ -64,9 +64,9 @@ class TestBFactorAnalyzer:
         """Test BFactorAnalyzer initialization with pLDDT thresholds."""
         analyzer = BFactorAnalyzer()
 
-        assert analyzer.plddt_thresholds['very_high'] == 90
-        assert analyzer.plddt_thresholds['confident'] == 70
-        assert analyzer.plddt_thresholds['low'] == 50
+        assert analyzer.plddt_thresholds["very_high"] == 90
+        assert analyzer.plddt_thresholds["confident"] == 70
+        assert analyzer.plddt_thresholds["low"] == 50
 
 
 class TestBFactorExtraction:
@@ -83,10 +83,10 @@ class TestBFactorExtraction:
         assert len(bfactors) > 0
         # Check that keys are in expected format (chain_position)
         for key in list(bfactors.keys())[:5]:
-            assert '_' in key
-            chain_id, position = key.split('_')
+            assert "_" in key
+            chain_id, position = key.split("_")
             assert isinstance(chain_id, str)
-            assert position.lstrip('-').isdigit()
+            assert position.lstrip("-").isdigit()
 
     def test_extract_bfactors_from_predicted(self):
         """Test pLDDT extraction from predicted structure."""
@@ -271,9 +271,13 @@ class TestDataFrameConversion:
         assert isinstance(df, pd.DataFrame)
         assert len(df) == 2
         assert list(df.columns) == [
-            'residue_id', 'chain_id', 'position',
-            'experimental_bfactor', 'predicted_confidence',
-            'difference', 'normalized_bfactor'
+            "residue_id",
+            "chain_id",
+            "position",
+            "experimental_bfactor",
+            "predicted_confidence",
+            "difference",
+            "normalized_bfactor",
         ]
 
     def test_to_dataframe_empty(self):
@@ -307,8 +311,8 @@ class TestCSVExport:
             # Verify content
             df = pd.read_csv(output_path)
             assert len(df) == 2
-            assert df['residue_id'].tolist() == ["A_1", "A_2"]
-            assert df['position'].tolist() == [1, 2]
+            assert df["residue_id"].tolist() == ["A_1", "A_2"]
+            assert df["position"].tolist() == [1, 2]
 
     def test_save_to_csv_creates_directories(self):
         """Test that save_to_csv creates parent directories."""
@@ -378,9 +382,7 @@ class TestEdgeCases:
 
     def test_single_residue_comparison(self):
         """Test that single residue works correctly."""
-        comparisons = [
-            BFactorComparison("A_1", "A", 1, 25.0, 85.0, 60.0, 0.0)
-        ]
+        comparisons = [BFactorComparison("A_1", "A", 1, 25.0, 85.0, 60.0, 0.0)]
 
         analyzer = BFactorAnalyzer()
         stats = analyzer.calculate_statistics(comparisons)
@@ -392,8 +394,6 @@ class TestEdgeCases:
 
     def test_insertion_code_in_residue_key(self):
         """Test that insertion codes are preserved in residue keys."""
-        from biostructbenchmark.core.io import get_structure
-        from pathlib import Path
 
         analyzer = BFactorAnalyzer()
 
@@ -405,9 +405,9 @@ class TestEdgeCases:
 
         # Create residues with insertion codes
         residues = []
-        for i, icode in [(42, ' '), (42, 'A'), (42, 'B'), (43, ' ')]:
+        for i, icode in [(42, " "), (42, "A"), (42, "B"), (43, " ")]:
             residue = Mock()
-            residue.get_id.return_value = (' ', i, icode)
+            residue.get_id.return_value = (" ", i, icode)
             atom = Mock()
             atom.get_bfactor.return_value = 50.0 + len(residues)
             residue.__iter__ = Mock(return_value=iter([atom]))
@@ -436,7 +436,7 @@ class TestEdgeCases:
 
         # Standard residue (hetflag = ' ')
         std_res = Mock()
-        std_res.get_id.return_value = (' ', 1, ' ')
+        std_res.get_id.return_value = (" ", 1, " ")
         atom1 = Mock()
         atom1.get_bfactor.return_value = 30.0
         std_res.__iter__ = Mock(return_value=iter([atom1]))
@@ -444,15 +444,15 @@ class TestEdgeCases:
 
         # Water molecule (hetflag = 'W')
         water = Mock()
-        water.get_id.return_value = ('W', 100, ' ')
+        water.get_id.return_value = ("W", 100, " ")
         atom2 = Mock()
         atom2.get_bfactor.return_value = 50.0
         water.__iter__ = Mock(return_value=iter([atom2]))
         residues.append(water)
 
-        # Ligand (hetflag = 'H_LIG')
+        # Ligand with hetflag H_LIG
         ligand = Mock()
-        ligand.get_id.return_value = ('H_LIG', 200, ' ')
+        ligand.get_id.return_value = ("H_LIG", 200, " ")
         atom3 = Mock()
         atom3.get_bfactor.return_value = 40.0
         ligand.__iter__ = Mock(return_value=iter([atom3]))
@@ -470,28 +470,30 @@ class TestEdgeCases:
         structure.get_models.return_value = [model]
 
         # With filtering (default)
-        bfactors_filtered = analyzer._extract_bfactors_from_structure(structure, filter_heteroatoms=True)
+        bfactors_filtered = analyzer._extract_bfactors_from_structure(
+            structure, filter_heteroatoms=True
+        )
         assert len(bfactors_filtered) == 1  # Only standard residue
         assert "A_1" in bfactors_filtered
 
         # Without filtering - need to rebuild residues list since we consumed it
         residues2 = []
         std_res2 = Mock()
-        std_res2.get_id.return_value = (' ', 1, ' ')
+        std_res2.get_id.return_value = (" ", 1, " ")
         atom1b = Mock()
         atom1b.get_bfactor.return_value = 30.0
         std_res2.__iter__ = Mock(return_value=iter([atom1b]))
         residues2.append(std_res2)
 
         water2 = Mock()
-        water2.get_id.return_value = ('W', 100, ' ')
+        water2.get_id.return_value = ("W", 100, " ")
         atom2b = Mock()
         atom2b.get_bfactor.return_value = 50.0
         water2.__iter__ = Mock(return_value=iter([atom2b]))
         residues2.append(water2)
 
         ligand2 = Mock()
-        ligand2.get_id.return_value = ('H_LIG', 200, ' ')
+        ligand2.get_id.return_value = ("H_LIG", 200, " ")
         atom3b = Mock()
         atom3b.get_bfactor.return_value = 40.0
         ligand2.__iter__ = Mock(return_value=iter([atom3b]))
@@ -507,7 +509,9 @@ class TestEdgeCases:
         structure2 = Mock()
         structure2.get_models.return_value = [model2]
 
-        bfactors_all = analyzer._extract_bfactors_from_structure(structure2, filter_heteroatoms=False)
+        bfactors_all = analyzer._extract_bfactors_from_structure(
+            structure2, filter_heteroatoms=False
+        )
         assert len(bfactors_all) == 3  # All residues
 
 
@@ -544,10 +548,16 @@ class TestIntegration:
             # Verify CSV content
             df = pd.read_csv(output_path)
             assert len(df) == len(comparisons)
-            assert all(col in df.columns for col in [
-                'residue_id', 'chain_id', 'position',
-                'experimental_bfactor', 'predicted_confidence'
-            ])
+            assert all(
+                col in df.columns
+                for col in [
+                    "residue_id",
+                    "chain_id",
+                    "position",
+                    "experimental_bfactor",
+                    "predicted_confidence",
+                ]
+            )
 
     def test_full_workflow_9ny8(self):
         """Test complete workflow with 9ny8 structure."""

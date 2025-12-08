@@ -2,18 +2,18 @@
 
 import argparse
 import os
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
-from importlib.metadata import version, PackageNotFoundError
 
 
 def validate_file_path(input_path: str) -> Path:
     """Validate file_path and readability"""
     file_path = Path(input_path)
     checks = [
-        (Path.exists(file_path), "Path does not exist"),
-        (Path.is_file(file_path), "Not a valid file"),
+        (file_path.exists(), "Path does not exist"),
+        (file_path.is_file(), "Not a valid file"),
         (os.access(file_path, os.R_OK), "No read permission"),
-        (os.path.getsize(file_path) > 0, "File is empty"),
+        (file_path.stat().st_size > 0, "File is empty"),
     ]
     for condition, error_message in checks:
         if not condition:
@@ -56,7 +56,8 @@ def arg_parser() -> argparse.Namespace:
 
     # Output options
     parser.add_argument(
-        "-o", "--output-dir",
+        "-o",
+        "--output-dir",
         type=str,
         help="Directory to save aligned structures (default: current directory)",
     )
@@ -68,7 +69,8 @@ def arg_parser() -> argparse.Namespace:
 
     # Analysis options
     parser.add_argument(
-        "-b", "--analyze-bfactor",
+        "-b",
+        "--analyze-bfactor",
         action="store_true",
         help="Perform B-factor/pLDDT confidence analysis",
     )

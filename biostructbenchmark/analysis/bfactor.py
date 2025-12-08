@@ -10,11 +10,11 @@ confidence in its predictions (0-100 scale, stored in B-factor field).
 """
 
 import logging
+from dataclasses import dataclass
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
-from pathlib import Path
-from typing import Tuple
-from dataclasses import dataclass
 from Bio.PDB import Structure
 
 from biostructbenchmark.core.io import get_structure
@@ -36,6 +36,7 @@ class BFactorComparison:
         difference: predicted_confidence - experimental_bfactor
         normalized_bfactor: Z-score normalized experimental B-factor
     """
+
     residue_id: str
     chain_id: str
     position: int
@@ -58,6 +59,7 @@ class BFactorStatistics:
         high_confidence_accuracy: Mean absolute difference for pLDDT > 70
         low_confidence_accuracy: Mean absolute difference for pLDDT ≤ 70
     """
+
     mean_experimental: float
     mean_predicted: float
     correlation: float
@@ -88,13 +90,9 @@ class BFactorAnalyzer:
         >>> analyzer.save_to_csv(comparisons, Path("bfactor_comparison.csv"))
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the B-factor analyzer with pLDDT thresholds."""
-        self.plddt_thresholds = {
-            'very_high': 90,
-            'confident': 70,
-            'low': 50
-        }
+        self.plddt_thresholds = {"very_high": 90, "confident": 70, "low": 50}
 
     def validate_bfactors(self, structure: Structure.Structure) -> bool:
         """
@@ -129,9 +127,7 @@ class BFactorAnalyzer:
             return False
 
     def _extract_bfactors_from_structure(
-        self,
-        structure: Structure.Structure,
-        filter_heteroatoms: bool = True
+        self, structure: Structure.Structure, filter_heteroatoms: bool = True
     ) -> dict[str, float]:
         """
         Extract average B-factors per residue from a structure object.
@@ -166,7 +162,7 @@ class BFactorAnalyzer:
                     # hetflag=' ' means standard residue
                     # hetflag='W' means water
                     # hetflag='H_*' means other heteroatoms
-                    if filter_heteroatoms and hetflag != ' ':
+                    if filter_heteroatoms and hetflag != " ":
                         continue
 
                     # Calculate average B-factor across all atoms in residue
@@ -186,7 +182,9 @@ class BFactorAnalyzer:
                     bfactors[residue_key] = float(avg_bfactor)
 
         except Exception as e:
-            logger.warning(f"Error extracting B-factors (returning {len(bfactors)} partial results): {e}")
+            logger.warning(
+                f"Error extracting B-factors (returning {len(bfactors)} partial results): {e}"
+            )
             return bfactors
 
         return bfactors
@@ -210,15 +208,13 @@ class BFactorAnalyzer:
 
         try:
             return self._extract_bfactors_from_structure(structure, filter_heteroatoms=True)
-        except Exception as e:
-            logger.error(f"Error extracting B-factors from {structure_path}: {e}")
+        except Exception:
+            logger.exception("Error extracting B-factors from %s", structure_path)
             return {}
 
     def analyze_structures(
-        self,
-        observed_structure: Structure.Structure,
-        predicted_structure: Structure.Structure
-    ) -> Tuple[list[BFactorComparison], BFactorStatistics]:
+        self, observed_structure: Structure.Structure, predicted_structure: Structure.Structure
+    ) -> tuple[list[BFactorComparison], BFactorStatistics]:
         """
         Analyze B-factors between experimental and predicted structures.
 
@@ -252,7 +248,7 @@ class BFactorAnalyzer:
                 predicted_structure, filter_heteroatoms=True
             )
         except Exception as e:
-            raise ValueError(f"Error extracting B-factors from structures: {e}")
+            raise ValueError(f"Error extracting B-factors from structures: {e}") from e
 
         # Find common residues
         common_residues = set(obs_bfactors.keys()) & set(pred_bfactors.keys())
@@ -267,12 +263,12 @@ class BFactorAnalyzer:
         for res_key in sorted(common_residues):
             # Parse residue key (handles insertion codes like "A_42A")
             # Use rsplit to handle potential underscores in chain IDs
-            parts = res_key.rsplit('_', 1)
+            parts = res_key.rsplit("_", 1)
             if len(parts) == 2:
                 chain_id, position_str = parts
                 # Extract numeric position (may have insertion code suffix)
                 # Find where non-digits start
-                position = int(''.join(c for c in position_str if c.isdigit() or c == '-'))
+                position = int("".join(c for c in position_str if c.isdigit() or c == "-"))
             else:
                 # Fallback for malformed keys
                 chain_id = res_key
@@ -290,14 +286,14 @@ class BFactorAnalyzer:
                 experimental_bfactor=exp_value,
                 predicted_confidence=pred_value,
                 difference=pred_value - exp_value,
-                normalized_bfactor=0.0  # Will be calculated below
+                normalized_bfactor=0.0,  # Will be calculated below
             )
             comparisons.append(comparison)
 
         # Calculate Z-score normalization for experimental B-factors
         if len(exp_values) > 1:
-            mean_exp = np.mean(exp_values)
-            std_exp = np.std(exp_values)
+            mean_exp = float(np.mean(exp_values))
+            std_exp = float(np.std(exp_values))
             if std_exp > 0:
                 for comp in comparisons:
                     comp.normalized_bfactor = (comp.experimental_bfactor - mean_exp) / std_exp
@@ -308,10 +304,8 @@ class BFactorAnalyzer:
         return comparisons, stats
 
     def compare_bfactors(
-        self,
-        experimental_path: Path,
-        predicted_path: Path
-    ) -> Tuple[list[BFactorComparison], BFactorStatistics]:
+        self, experimental_path: Path, predicted_path: Path
+    ) -> tuple[list[BFactorComparison], BFactorStatistics]:
         """
         Compare B-factors between experimental and predicted structure files.
 
@@ -371,7 +365,7 @@ class BFactorAnalyzer:
 
         # Calculate RMSD
         differences = np.array([c.difference for c in comparisons])
-        rmsd = float(np.sqrt(np.mean(differences ** 2)))
+        rmsd = float(np.sqrt(np.mean(differences**2)))
 
         # Accuracy by confidence regions (using pLDDT threshold of 70)
         high_conf = [c for c in comparisons if c.predicted_confidence > 70]
@@ -386,7 +380,7 @@ class BFactorAnalyzer:
             correlation=correlation,
             rmsd=rmsd,
             high_confidence_accuracy=high_acc,
-            low_confidence_accuracy=low_acc
+            low_confidence_accuracy=low_acc,
         )
 
     def calculate_statistics(self, comparisons: list[BFactorComparison]) -> BFactorStatistics:
@@ -415,17 +409,18 @@ class BFactorAnalyzer:
                                    experimental_bfactor, predicted_confidence,
                                    difference, normalized_bfactor
         """
-        data = []
-        for comp in comparisons:
-            data.append({
-                'residue_id': comp.residue_id,
-                'chain_id': comp.chain_id,
-                'position': comp.position,
-                'experimental_bfactor': comp.experimental_bfactor,
-                'predicted_confidence': comp.predicted_confidence,
-                'difference': comp.difference,
-                'normalized_bfactor': comp.normalized_bfactor
-            })
+        data = [
+            {
+                "residue_id": comp.residue_id,
+                "chain_id": comp.chain_id,
+                "position": comp.position,
+                "experimental_bfactor": comp.experimental_bfactor,
+                "predicted_confidence": comp.predicted_confidence,
+                "difference": comp.difference,
+                "normalized_bfactor": comp.normalized_bfactor,
+            }
+            for comp in comparisons
+        ]
         return pd.DataFrame(data)
 
     def save_to_csv(self, comparisons: list[BFactorComparison], output_path: Path) -> None:
@@ -446,4 +441,4 @@ class BFactorAnalyzer:
             output_path.parent.mkdir(parents=True, exist_ok=True)
             df.to_csv(output_path, index=False)
         except Exception as e:
-            raise IOError(f"Failed to save CSV to {output_path}: {e}")
+            raise OSError(f"Failed to save CSV to {output_path}: {e}") from e

@@ -82,7 +82,8 @@ biostructbenchmark experimental.cif predicted.cif \
 
 This project uses [uv](https://docs.astral.sh/uv/) for fast, reliable package management.
 
-To set up the development environment:
+### Quick Start
+
 ```bash
 # Install uv if you don't have it
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -90,13 +91,39 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 # Clone and install with dev dependencies
 git clone https://github.com/BioStructBenchmark/BioStructBenchmark.git
 cd BioStructBenchmark
-uv sync
 
-# Run tests
-uv run pytest
-
-# Format and lint code
-uv run black .
-uv run pylint biostructbenchmark
+# Install dev dependencies and set up pre-commit hooks
+make dev
 ```
 
+### Development Commands
+
+```bash
+make help       # Show all available commands
+make test       # Run tests with coverage (80% threshold)
+make lint       # Run Ruff linting and format checks
+make typecheck  # Run mypy type checking
+make format     # Auto-format code with Ruff
+make quality    # Run docstring coverage and dead code checks
+make security   # Run Bandit and pip-audit security scans
+make check      # Run all checks (lint, typecheck, quality, test, security)
+```
+
+### Code Quality Tools
+
+- **Ruff**: Fast linting and formatting (replaces Black, isort, Flake8)
+- **mypy**: Static type checking with strict mode
+- **pytest-cov**: Test coverage with 80% threshold
+- **interrogate**: Docstring coverage checking
+- **vulture**: Dead code detection
+- **Bandit**: Security vulnerability scanning
+- **pip-audit**: Dependency vulnerability scanning
+- **pre-commit**: Git hooks for automated checks (includes zizmor for GitHub Actions)
+
+### CI/CD
+
+All pull requests run:
+- Linting and formatting checks
+- Type checking
+- Tests with coverage
+- Security scans (Bandit + pip-audit)
