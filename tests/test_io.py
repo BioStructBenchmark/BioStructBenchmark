@@ -17,10 +17,3 @@ def test_file_no_extension():
 
 def test_file_invalid_extension():
     assert validate_file(Path("./tests/data/invalid.extension")) == False
-
-
-# Note: GEMMI validation tests removed
-# GEMMI is more lenient than BioPython in file validation.
-# The files that BioPython rejected, GEMMI may accept as it uses
-# different parsing heuristics. Testing GEMMI's specific validation
-# behavior is out of scope - we rely on GEMMI's robustness.

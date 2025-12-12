@@ -5,7 +5,7 @@ Tests for structure output functionality
 import shutil
 import tempfile
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import numpy as np
 import pytest
@@ -37,7 +37,11 @@ class TestSaveAlignedStructuresUnit:
         """Test that save_aligned_structures creates output files with GEMMI"""
         # GEMMI-based implementation - testing moved to integration tests
         # This test verifies the function signature and basic behavior
-        from conftest import create_mock_gemmi_chain, create_mock_gemmi_residue, create_mock_gemmi_structure
+        from conftest import (
+            create_mock_gemmi_chain,
+            create_mock_gemmi_residue,
+            create_mock_gemmi_structure,
+        )
 
         # Create the expected directory structure
         (self.temp_path / "alignments").mkdir(parents=True, exist_ok=True)
@@ -69,7 +73,11 @@ class TestSaveAlignedStructuresUnit:
 
     def test_output_directory_creation(self):
         """Test that save_aligned_structures works with a run directory that has subdirectories"""
-        from conftest import create_mock_gemmi_chain, create_mock_gemmi_residue, create_mock_gemmi_structure
+        from conftest import (
+            create_mock_gemmi_chain,
+            create_mock_gemmi_residue,
+            create_mock_gemmi_structure,
+        )
 
         run_dir = self.temp_path / "run_dir"
         # Create the expected directory structure (like create_output_directory_structure does)

@@ -394,7 +394,11 @@ class TestEdgeCases:
 
     def test_insertion_code_in_residue_key(self):
         """Test that insertion codes are preserved in residue keys."""
-        from conftest import create_mock_gemmi_chain, create_mock_gemmi_residue, create_mock_gemmi_structure
+        from conftest import (
+            create_mock_gemmi_chain,
+            create_mock_gemmi_residue,
+            create_mock_gemmi_structure,
+        )
 
         analyzer = BFactorAnalyzer()
 
@@ -421,7 +425,11 @@ class TestEdgeCases:
 
     def test_heteroatom_filtering(self):
         """Test that water and ligands are filtered out."""
-        from conftest import create_mock_gemmi_chain, create_mock_gemmi_residue, create_mock_gemmi_structure
+        from conftest import (
+            create_mock_gemmi_chain,
+            create_mock_gemmi_residue,
+            create_mock_gemmi_structure,
+        )
 
         analyzer = BFactorAnalyzer()
 

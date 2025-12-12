@@ -2,12 +2,7 @@
 Tests for sequence analysis functionality
 """
 
-from unittest.mock import Mock
-
 import pytest
-
-from conftest import create_mock_gemmi_chain, create_mock_gemmi_residue, create_mock_gemmi_structure
-
 from biostructbenchmark.core.sequences import (
     DNA_NUCLEOTIDE_MAP,
     ChainMatch,
@@ -17,6 +12,8 @@ from biostructbenchmark.core.sequences import (
     get_protein_sequence,
     match_chains_by_similarity,
 )
+
+from conftest import create_mock_gemmi_chain, create_mock_gemmi_residue, create_mock_gemmi_structure
 
 
 class TestChainMatching:
@@ -131,10 +128,13 @@ class TestChainClassification:
     def test_classify_chains_protein_and_dna(self):
         """Test classification of mixed protein and DNA chains"""
         # Create mixed structure using GEMMI mocks
-        protein_residues = [create_mock_gemmi_residue(name, i+1)
-                           for i, name in enumerate(["ALA", "GLY", "VAL"])]
-        dna_residues = [create_mock_gemmi_residue(name, i+1)
-                       for i, name in enumerate(["DA", "DT", "DG", "DC"])]
+        protein_residues = [
+            create_mock_gemmi_residue(name, i + 1) for i, name in enumerate(["ALA", "GLY", "VAL"])
+        ]
+        dna_residues = [
+            create_mock_gemmi_residue(name, i + 1)
+            for i, name in enumerate(["DA", "DT", "DG", "DC"])
+        ]
 
         protein_chain = create_mock_gemmi_chain("A", protein_residues)
         dna_chain = create_mock_gemmi_chain("B", dna_residues)

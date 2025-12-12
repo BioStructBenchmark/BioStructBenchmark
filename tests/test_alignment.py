@@ -5,9 +5,6 @@ Tests for protein-DNA complex alignment functionality
 from unittest.mock import Mock, patch
 
 import numpy as np
-
-from conftest import create_mock_gemmi_chain, create_mock_gemmi_residue, create_mock_gemmi_structure
-
 from biostructbenchmark.core.alignment import AlignmentResult, align_protein_dna_complex
 from biostructbenchmark.core.interface import find_interface_residues
 from biostructbenchmark.core.sequences import (
@@ -21,6 +18,8 @@ from biostructbenchmark.core.structural import (
     calculate_orientation_error,
     calculate_per_residue_rmsd,
 )
+
+from conftest import create_mock_gemmi_chain, create_mock_gemmi_residue, create_mock_gemmi_structure
 
 
 class TestChainClassification:
@@ -42,8 +41,7 @@ class TestChainClassification:
         """Test classification of DNA chains."""
         # Create GEMMI-style DNA residues
         dna_residues = [
-            create_mock_gemmi_residue(nuc, i)
-            for i, nuc in enumerate(["DA", "DT", "DG"], 1)
+            create_mock_gemmi_residue(nuc, i) for i, nuc in enumerate(["DA", "DT", "DG"], 1)
         ]
         chain = create_mock_gemmi_chain("B", dna_residues)
         structure = create_mock_gemmi_structure([chain])
@@ -60,7 +58,9 @@ class TestSequenceExtraction:
     def test_get_protein_sequence(self):
         """Test protein sequence extraction."""
         # Create GEMMI-style protein residues
-        residues = [create_mock_gemmi_residue(aa, i) for i, aa in enumerate(["ALA", "GLY", "VAL"], 1)]
+        residues = [
+            create_mock_gemmi_residue(aa, i) for i, aa in enumerate(["ALA", "GLY", "VAL"], 1)
+        ]
         chain = create_mock_gemmi_chain("A", residues)
         structure = create_mock_gemmi_structure([chain])
 
@@ -71,8 +71,7 @@ class TestSequenceExtraction:
         """Test DNA sequence extraction."""
         # Create GEMMI-style DNA residues
         residues = [
-            create_mock_gemmi_residue(nuc, i)
-            for i, nuc in enumerate(["DA", "DT", "DG", "DC"], 1)
+            create_mock_gemmi_residue(nuc, i) for i, nuc in enumerate(["DA", "DT", "DG", "DC"], 1)
         ]
         chain = create_mock_gemmi_chain("B", residues)
         structure = create_mock_gemmi_structure([chain])
@@ -162,7 +161,6 @@ class TestInterfaceDetection:
 
         # Mock distance calculation between atoms
         prot_atoms = list(prot_residue)
-        dna_atoms = list(dna_residue)
 
         # Mock the distance calculation (GEMMI uses (pos1 - pos2).length())
         pos_diff = Mock()
