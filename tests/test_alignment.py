@@ -5,6 +5,9 @@ Tests for protein-DNA complex alignment functionality
 from unittest.mock import Mock, patch
 
 import numpy as np
+
+from conftest import create_mock_gemmi_chain, create_mock_gemmi_residue, create_mock_gemmi_structure
+
 from biostructbenchmark.core.alignment import AlignmentResult, align_protein_dna_complex
 from biostructbenchmark.core.interface import find_interface_residues
 from biostructbenchmark.core.sequences import (
@@ -25,51 +28,27 @@ class TestChainClassification:
 
     def test_classify_protein_chains(self):
         """Test classification of protein chains."""
-        # Mock structure with protein residues
-        structure = Mock()
-        model = Mock()
-        chain = Mock()
-        chain.get_id.return_value = "A"
+        # Create GEMMI-style protein residues
+        protein_residues = [create_mock_gemmi_residue("ALA", i) for i in range(1, 4)]
+        chain = create_mock_gemmi_chain("A", protein_residues)
+        structure = create_mock_gemmi_structure([chain])
 
-        # Mock protein residues
-        protein_residues = []
-        for i in range(3):
-            residue = Mock()
-            residue.get_resname.return_value = "ALA"
-            protein_residues.append(residue)
-
-        chain.__iter__ = Mock(return_value=iter(protein_residues))
-        model.__iter__ = Mock(return_value=iter([chain]))
-        structure.__iter__ = Mock(return_value=iter([model]))
-
-        with patch("biostructbenchmark.core.sequences.is_aa") as mock_is_aa:
-            mock_is_aa.return_value = True
-            protein_chains, dna_chains = classify_chains(structure)
+        protein_chains, dna_chains = classify_chains(structure)
 
         assert protein_chains == ["A"]
         assert dna_chains == []
 
     def test_classify_dna_chains(self):
         """Test classification of DNA chains."""
-        structure = Mock()
-        model = Mock()
-        chain = Mock()
-        chain.get_id.return_value = "B"
+        # Create GEMMI-style DNA residues
+        dna_residues = [
+            create_mock_gemmi_residue(nuc, i)
+            for i, nuc in enumerate(["DA", "DT", "DG"], 1)
+        ]
+        chain = create_mock_gemmi_chain("B", dna_residues)
+        structure = create_mock_gemmi_structure([chain])
 
-        # Mock DNA residues
-        dna_residues = []
-        for nucleotide in ["DA", "DT", "DG"]:
-            residue = Mock()
-            residue.get_resname.return_value = nucleotide
-            dna_residues.append(residue)
-
-        chain.__iter__ = Mock(return_value=iter(dna_residues))
-        model.__iter__ = Mock(return_value=iter([chain]))
-        structure.__iter__ = Mock(return_value=iter([model]))
-
-        with patch("biostructbenchmark.core.sequences.is_aa") as mock_is_aa:
-            mock_is_aa.return_value = False
-            protein_chains, dna_chains = classify_chains(structure)
+        protein_chains, dna_chains = classify_chains(structure)
 
         assert protein_chains == []
         assert dna_chains == ["B"]
@@ -80,51 +59,23 @@ class TestSequenceExtraction:
 
     def test_get_protein_sequence(self):
         """Test protein sequence extraction."""
-        structure = Mock()
-        model = Mock()
-        chain = Mock()
-        chain.get_id.return_value = "A"
+        # Create GEMMI-style protein residues
+        residues = [create_mock_gemmi_residue(aa, i) for i, aa in enumerate(["ALA", "GLY", "VAL"], 1)]
+        chain = create_mock_gemmi_chain("A", residues)
+        structure = create_mock_gemmi_structure([chain])
 
-        # Mock protein residues
-        residues = []
-        for aa in ["ALA", "GLY", "VAL"]:
-            residue = Mock()
-            residue.get_resname.return_value = aa
-            residues.append(residue)
-
-        chain.__iter__ = Mock(return_value=iter(residues))
-        model.__iter__ = Mock(return_value=iter([chain]))
-        structure.__iter__ = Mock(return_value=iter([model]))
-
-        with (
-            patch("biostructbenchmark.core.sequences.is_aa") as mock_is_aa,
-            patch("biostructbenchmark.core.sequences.seq1") as mock_seq1,
-        ):
-            mock_is_aa.return_value = True
-            mock_seq1.side_effect = lambda x: {"ALA": "A", "GLY": "G", "VAL": "V"}[x]
-
-            sequence = get_protein_sequence(structure, "A")
-
+        sequence = get_protein_sequence(structure, "A")
         assert sequence == "AGV"
 
     def test_get_dna_sequence(self):
         """Test DNA sequence extraction."""
-        structure = Mock()
-        model = Mock()
-        chain = Mock()
-        chain.get_id.return_value = "B"
-
-        # Mock DNA residues with proper ordering
-        residues = []
-        for i, nucleotide in enumerate(["DA", "DT", "DG", "DC"]):
-            residue = Mock()
-            residue.get_resname.return_value = nucleotide
-            residue.get_id.return_value = (" ", i + 1, " ")  # Standard PDB residue ID
-            residues.append(residue)
-
-        chain.get_residues.return_value = residues
-        model.__iter__ = Mock(return_value=iter([chain]))
-        structure.__iter__ = Mock(return_value=iter([model]))
+        # Create GEMMI-style DNA residues
+        residues = [
+            create_mock_gemmi_residue(nuc, i)
+            for i, nuc in enumerate(["DA", "DT", "DG", "DC"], 1)
+        ]
+        chain = create_mock_gemmi_chain("B", residues)
+        structure = create_mock_gemmi_structure([chain])
 
         sequence = get_dna_sequence(structure, "B")
         assert sequence == "ATGC"
@@ -203,40 +154,26 @@ class TestInterfaceDetection:
 
     def test_find_interface_residues_mock(self):
         """Test interface residue detection with mock structures."""
-        structure = Mock()
-        model = Mock()
+        # Create GEMMI-style protein residue with close atom
+        prot_residue = create_mock_gemmi_residue("ALA", 1, chain_name="A")
 
-        # Mock protein chain
-        prot_chain = Mock()
-        prot_chain.get_id.return_value = "A"
+        # Create GEMMI-style DNA residue
+        dna_residue = create_mock_gemmi_residue("DA", 1, chain_name="B")
 
-        # Mock DNA chain
-        dna_chain = Mock()
-        dna_chain.get_id.return_value = "B"
+        # Mock distance calculation between atoms
+        prot_atoms = list(prot_residue)
+        dna_atoms = list(dna_residue)
 
-        # Mock protein residue with atoms
-        prot_residue = Mock()
-        prot_residue.get_id.return_value = (" ", 1, " ")
-        prot_residue.get_resname.return_value = "ALA"  # Add residue name for is_aa check
-        prot_atom = Mock()
-        prot_atom.__sub__ = Mock(return_value=3.0)  # Distance of 3 Angstroms
-        prot_residue.get_atoms.return_value = [prot_atom]
+        # Mock the distance calculation (GEMMI uses (pos1 - pos2).length())
+        pos_diff = Mock()
+        pos_diff.length = Mock(return_value=3.0)  # 3 Angstroms
+        prot_atoms[0].pos.__sub__ = Mock(return_value=pos_diff)
 
-        # Mock DNA residue with atoms
-        dna_residue = Mock()
-        dna_residue.get_id.return_value = (" ", 1, " ")
-        dna_residue.get_resname.return_value = "DA"
-        dna_atom = Mock()
-        dna_residue.get_atoms.return_value = [dna_atom]
+        prot_chain = create_mock_gemmi_chain("A", [prot_residue])
+        dna_chain = create_mock_gemmi_chain("B", [dna_residue])
+        structure = create_mock_gemmi_structure([prot_chain, dna_chain])
 
-        prot_chain.__iter__ = Mock(return_value=iter([prot_residue]))
-        dna_chain.__iter__ = Mock(return_value=iter([dna_residue]))
-        model.__iter__ = Mock(return_value=iter([prot_chain, dna_chain]))
-        structure.__iter__ = Mock(return_value=iter([model]))
-
-        with patch("biostructbenchmark.core.sequences.is_aa") as mock_is_aa:
-            mock_is_aa.return_value = True
-            interface_residues = find_interface_residues(structure, ["A"], ["B"], 5.0)
+        interface_residues = find_interface_residues(structure, ["A"], ["B"], 5.0)
 
         assert "A" in interface_residues
         assert "B" in interface_residues
