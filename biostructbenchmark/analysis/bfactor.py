@@ -13,9 +13,9 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 
+import gemmi
 import numpy as np
 import pandas as pd
-from Bio.PDB import Structure
 
 from biostructbenchmark.core.io import get_structure
 
@@ -94,12 +94,12 @@ class BFactorAnalyzer:
         """Initialize the B-factor analyzer with pLDDT thresholds."""
         self.plddt_thresholds = {"very_high": 90, "confident": 70, "low": 50}
 
-    def validate_bfactors(self, structure: Structure.Structure) -> bool:
+    def validate_bfactors(self, structure: gemmi.Structure) -> bool:
         """
         Check if structure contains valid B-factor values.
 
         Args:
-            structure: BioPython Structure object to validate
+            structure: GEMMI Structure object to validate
 
         Returns:
             True if structure has at least some non-zero B-factors, False otherwise
@@ -116,7 +116,7 @@ class BFactorAnalyzer:
                     for residue in chain:
                         for atom in residue:
                             bfactor_count += 1
-                            if atom.get_bfactor() > 0:
+                            if atom.b_iso > 0:
                                 nonzero_count += 1
 
             # At least 50% of atoms should have non-zero B-factors
@@ -127,13 +127,13 @@ class BFactorAnalyzer:
             return False
 
     def _extract_bfactors_from_structure(
-        self, structure: Structure.Structure, filter_heteroatoms: bool = True
+        self, structure: gemmi.Structure, filter_heteroatoms: bool = True
     ) -> dict[str, float]:
         """
         Extract average B-factors per residue from a structure object.
 
         Args:
-            structure: BioPython Structure object
+            structure: GEMMI Structure object
             filter_heteroatoms: If True, skip water molecules, ligands, and other heteroatoms
 
         Returns:
@@ -145,28 +145,27 @@ class BFactorAnalyzer:
         try:
             # Use only the first model (standard for X-ray structures)
             # For NMR structures with multiple models, this uses model 0
-            models = list(structure.get_models())
-            if not models:
+            if len(structure) == 0:
                 return {}
 
-            model = models[0]
+            model = structure[0]
 
             for chain in model:
-                chain_id = chain.get_id()
+                chain_id = chain.name
 
                 for residue in chain:
-                    res_id = residue.get_id()
-                    hetflag, resseq, icode = res_id
+                    resseq = residue.seqid.num
+                    icode = residue.seqid.icode if residue.seqid.icode else ""
+                    hetflag = residue.het_flag
 
                     # Skip heteroatoms if filtering enabled
-                    # hetflag=' ' means standard residue
-                    # hetflag='W' means water
-                    # hetflag='H_*' means other heteroatoms
-                    if filter_heteroatoms and hetflag != " ":
+                    # hetflag=' ' or 'A' means standard residue
+                    # hetflag='H' means HETATM
+                    if filter_heteroatoms and hetflag == "H":
                         continue
 
                     # Calculate average B-factor across all atoms in residue
-                    residue_bfactors = [atom.get_bfactor() for atom in residue]
+                    residue_bfactors = [atom.b_iso for atom in residue]
                     if not residue_bfactors:
                         continue
 
@@ -213,7 +212,7 @@ class BFactorAnalyzer:
             return {}
 
     def analyze_structures(
-        self, observed_structure: Structure.Structure, predicted_structure: Structure.Structure
+        self, observed_structure: gemmi.Structure, predicted_structure: gemmi.Structure
     ) -> tuple[list[BFactorComparison], BFactorStatistics]:
         """
         Analyze B-factors between experimental and predicted structures.
@@ -226,8 +225,8 @@ class BFactorAnalyzer:
         Uses first model for multi-model structures.
 
         Args:
-            observed_structure: Experimental structure (Bio.PDB Structure object)
-            predicted_structure: Predicted structure (Bio.PDB Structure object)
+            observed_structure: Experimental structure (GEMMI Structure object)
+            predicted_structure: Predicted structure (GEMMI Structure object)
 
         Returns:
             Tuple of (list of BFactorComparison objects, BFactorStatistics object)

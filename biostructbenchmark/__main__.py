@@ -15,6 +15,11 @@ def main() -> None:
     experimental_structure = get_structure(args.file_path_observed)
     computational_structure = get_structure(args.file_path_predicted)
 
+    if experimental_structure is None:
+        raise ValueError(f"Failed to load experimental structure: {args.file_path_observed}")
+    if computational_structure is None:
+        raise ValueError(f"Failed to load computational structure: {args.file_path_predicted}")
+
     print("Performing protein-DNA complex alignment...")
     alignment_result = align_protein_dna_complex(
         experimental_structure,

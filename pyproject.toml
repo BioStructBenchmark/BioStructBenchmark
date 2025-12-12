@@ -15,6 +15,7 @@ classifiers = [
 ]
 dependencies = [
     "biopython>=1.85",
+    "gemmi>=0.6.7",
     "numpy>=2.3.1",
     "pandas>=2.0.0"
 ]
@@ -173,9 +174,9 @@ module = "tests.*"
 disallow_untyped_defs = false
 
 [[tool.mypy.overrides]]
-module = ["Bio.*", "numpy.*", "pandas.*"]
+module = ["Bio.*", "numpy.*", "pandas.*", "gemmi.*"]
 ignore_missing_imports = true
-# BioPython has incomplete type stubs - allow broader typing
+# BioPython and GEMMI have incomplete type stubs - allow broader typing
 follow_imports = "skip"
 
 [tool.coverage.run]
