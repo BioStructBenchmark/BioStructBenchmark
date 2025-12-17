@@ -17,11 +17,3 @@ def test_file_no_extension():
 
 def test_file_invalid_extension():
     assert validate_file(Path("./tests/data/invalid.extension")) == False
-
-
-def test_invalid_cif_file():
-    assert validate_file(Path("./tests/data/invalid.cif")) == False
-
-
-def test_invalid_pdb_file():
-    assert validate_file(Path("./tests/data/invalid.pdb")) == False

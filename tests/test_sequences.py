@@ -2,8 +2,6 @@
 Tests for sequence analysis functionality
 """
 
-from unittest.mock import Mock
-
 import pytest
 from biostructbenchmark.core.sequences import (
     DNA_NUCLEOTIDE_MAP,
@@ -15,48 +13,28 @@ from biostructbenchmark.core.sequences import (
     match_chains_by_similarity,
 )
 
+from conftest import create_mock_gemmi_chain, create_mock_gemmi_residue, create_mock_gemmi_structure
+
 
 class TestChainMatching:
     """Test chain matching functionality - the most critical component"""
 
-    def create_mock_chain(self, chain_id, residues):
-        """Create a mock chain with specified residues"""
-        chain = Mock()
-        chain.get_id.return_value = chain_id
-        chain.get_residues.return_value = residues
-        chain.__iter__ = lambda self: iter(residues)
-        return chain
-
-    def create_mock_residue(self, resname):
-        """Create a mock residue"""
-        residue = Mock()
-        residue.get_resname.return_value = resname
-        return residue
-
-    def create_mock_structure(self, chains):
-        """Create a mock structure"""
-        structure = Mock()
-        model = Mock()
-        model.__iter__ = lambda self: iter(chains)
-        structure.__iter__ = lambda self: iter([model])
-        return structure
-
     def test_match_chains_prevents_duplicate_mapping(self):
         """Test that chain matching creates 1:1 mappings (the bug we fixed)"""
-        # Create identical protein chains
+        # Create identical protein chains using GEMMI mocks
         protein_residues = [
-            self.create_mock_residue("ALA"),
-            self.create_mock_residue("GLY"),
-            self.create_mock_residue("VAL"),
+            create_mock_gemmi_residue("ALA", 1),
+            create_mock_gemmi_residue("GLY", 2),
+            create_mock_gemmi_residue("VAL", 3),
         ]
 
-        exp_chain_a = self.create_mock_chain("A", protein_residues)
-        exp_chain_b = self.create_mock_chain("B", protein_residues)
-        comp_chain_a = self.create_mock_chain("A", protein_residues)
-        comp_chain_b = self.create_mock_chain("B", protein_residues)
+        exp_chain_a = create_mock_gemmi_chain("A", protein_residues)
+        exp_chain_b = create_mock_gemmi_chain("B", protein_residues)
+        comp_chain_a = create_mock_gemmi_chain("A", protein_residues)
+        comp_chain_b = create_mock_gemmi_chain("B", protein_residues)
 
-        exp_structure = self.create_mock_structure([exp_chain_a, exp_chain_b])
-        comp_structure = self.create_mock_structure([comp_chain_a, comp_chain_b])
+        exp_structure = create_mock_gemmi_structure([exp_chain_a, exp_chain_b])
+        comp_structure = create_mock_gemmi_structure([comp_chain_a, comp_chain_b])
 
         # Mock sequence functions to avoid BioPython dependency
         with pytest.MonkeyPatch().context() as mp:
@@ -79,16 +57,16 @@ class TestChainMatching:
 
     def test_match_chains_respects_sequence_threshold(self):
         """Test that chain matching respects minimum identity thresholds"""
-        # Create chains with different sequences
-        good_residues = [self.create_mock_residue("ALA"), self.create_mock_residue("GLY")]
-        poor_residues = [self.create_mock_residue("PHE"), self.create_mock_residue("TRP")]
+        # Create chains with different sequences using GEMMI mocks
+        good_residues = [create_mock_gemmi_residue("ALA", 1), create_mock_gemmi_residue("GLY", 2)]
+        poor_residues = [create_mock_gemmi_residue("PHE", 1), create_mock_gemmi_residue("TRP", 2)]
 
-        exp_chain = self.create_mock_chain("A", good_residues)
-        comp_chain_good = self.create_mock_chain("A", good_residues)
-        comp_chain_poor = self.create_mock_chain("B", poor_residues)
+        exp_chain = create_mock_gemmi_chain("A", good_residues)
+        comp_chain_good = create_mock_gemmi_chain("A", good_residues)
+        comp_chain_poor = create_mock_gemmi_chain("B", poor_residues)
 
-        exp_structure = self.create_mock_structure([exp_chain])
-        comp_structure = self.create_mock_structure([comp_chain_good, comp_chain_poor])
+        exp_structure = create_mock_gemmi_structure([exp_chain])
+        comp_structure = create_mock_gemmi_structure([comp_chain_good, comp_chain_poor])
 
         with pytest.MonkeyPatch().context() as mp:
 
@@ -147,30 +125,21 @@ class TestSequenceIdentity:
 class TestChainClassification:
     """Test chain classification functionality"""
 
-    def create_mock_chain_with_residues(self, chain_id, residue_names):
-        """Create a mock chain with specified residue names"""
-        residues = []
-        for resname in residue_names:
-            residue = Mock()
-            residue.get_resname.return_value = resname
-            residues.append(residue)
-
-        chain = Mock()
-        chain.get_id.return_value = chain_id
-        chain.get_residues.return_value = residues
-        chain.__iter__ = lambda self: iter(residues)
-        return chain
-
     def test_classify_chains_protein_and_dna(self):
         """Test classification of mixed protein and DNA chains"""
-        # Create mixed structure
-        protein_chain = self.create_mock_chain_with_residues("A", ["ALA", "GLY", "VAL"])
-        dna_chain = self.create_mock_chain_with_residues("B", ["DA", "DT", "DG", "DC"])
+        # Create mixed structure using GEMMI mocks
+        protein_residues = [
+            create_mock_gemmi_residue(name, i + 1) for i, name in enumerate(["ALA", "GLY", "VAL"])
+        ]
+        dna_residues = [
+            create_mock_gemmi_residue(name, i + 1)
+            for i, name in enumerate(["DA", "DT", "DG", "DC"])
+        ]
 
-        structure = Mock()
-        model = Mock()
-        model.__iter__ = lambda self: iter([protein_chain, dna_chain])
-        structure.__iter__ = lambda self: iter([model])
+        protein_chain = create_mock_gemmi_chain("A", protein_residues)
+        dna_chain = create_mock_gemmi_chain("B", dna_residues)
+
+        structure = create_mock_gemmi_structure([protein_chain, dna_chain])
 
         protein_chains, dna_chains = classify_chains(structure)
 
@@ -181,10 +150,7 @@ class TestChainClassification:
 
     def test_classify_chains_empty_structure(self):
         """Test classification of empty structure"""
-        structure = Mock()
-        model = Mock()
-        model.__iter__ = lambda self: iter([])
-        structure.__iter__ = lambda self: iter([model])
+        structure = create_mock_gemmi_structure([])
 
         protein_chains, dna_chains = classify_chains(structure)
 

@@ -2,17 +2,16 @@
 Protein-DNA interface detection and analysis
 """
 
-from Bio.PDB import Structure
-from Bio.PDB.Polypeptide import is_aa
+import gemmi
 
-from .sequences import DNA_NUCLEOTIDE_MAP
+from .sequences import DNA_NUCLEOTIDE_MAP, is_standard_aa
 
 # Distance threshold for protein-DNA interface detection (Angstroms)
 INTERFACE_DISTANCE_THRESHOLD = 5.0
 
 
 def find_interface_residues(
-    structure: Structure,
+    structure: gemmi.Structure,
     protein_chains: list[str],
     dna_chains: list[str],
     threshold: float = INTERFACE_DISTANCE_THRESHOLD,
@@ -21,7 +20,7 @@ def find_interface_residues(
     Find residues at the protein-DNA interface.
 
     Args:
-        structure: BioPython structure
+        structure: GEMMI structure
         protein_chains: List of protein chain IDs
         dna_chains: List of DNA chain IDs
         threshold: Distance threshold in Angstroms
@@ -37,19 +36,25 @@ def find_interface_residues(
         dna_atoms = []
 
         for chain in model:
-            chain_id = chain.get_id()
+            chain_id = chain.name
             if chain_id in protein_chains:
                 for residue in chain:
-                    if is_aa(residue, standard=True):
-                        protein_atoms.extend(
-                            [(atom, chain_id, residue.get_id()) for atom in residue.get_atoms()]
+                    if is_standard_aa(residue):
+                        # Format residue ID to match BioPython format for compatibility
+                        res_id_str = (
+                            f"(' ', {residue.seqid.num}, "
+                            f"'{residue.seqid.icode if residue.seqid.icode else ' '}')"
                         )
+                        protein_atoms.extend([(atom, chain_id, res_id_str) for atom in residue])
             elif chain_id in dna_chains:
                 for residue in chain:
-                    if residue.get_resname() in DNA_NUCLEOTIDE_MAP:
-                        dna_atoms.extend(
-                            [(atom, chain_id, residue.get_id()) for atom in residue.get_atoms()]
+                    if residue.name in DNA_NUCLEOTIDE_MAP:
+                        # Format residue ID to match BioPython format for compatibility
+                        res_id_str = (
+                            f"(' ', {residue.seqid.num}, "
+                            f"'{residue.seqid.icode if residue.seqid.icode else ' '}')"
                         )
+                        dna_atoms.extend([(atom, chain_id, res_id_str) for atom in residue])
 
         # Find interface residues
         for chain_id in protein_chains + dna_chains:
@@ -58,7 +63,8 @@ def find_interface_residues(
         # Check distances between protein and DNA atoms
         for prot_atom, prot_chain, prot_res in protein_atoms:
             for dna_atom, dna_chain, dna_res in dna_atoms:
-                distance = prot_atom - dna_atom  # BioPython calculates distance
+                # Calculate distance using GEMMI Position objects
+                distance = (prot_atom.pos - dna_atom.pos).length()
                 if distance <= threshold:
                     prot_res_id = f"{prot_chain}:{prot_res}"
                     dna_res_id = f"{dna_chain}:{dna_res}"
